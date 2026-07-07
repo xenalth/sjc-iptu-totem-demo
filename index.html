@@ -1657,12 +1657,17 @@ function gateSubmit(){
   if(cyrb53(inp.value)===GATE_HASH){ gateHide(); }
   else { $('#gate-err').textContent='Senha incorreta. Tente novamente.'; inp.value=''; inp.focus(); }
 }
+function isLocalHost(){ return ['localhost','127.0.0.1',''].indexOf(location.hostname)>=0; }
 (function initGate(){
-  const local=['localhost','127.0.0.1',''].indexOf(location.hostname)>=0;
   let liberado=false; try{ liberado=sessionStorage.getItem('sjc_gate')==='1'; }catch(e){}
-  if(local || liberado){ $('#gate').style.display='none'; return; }
+  if(isLocalHost() || liberado){ $('#gate').style.display='none'; return; }
   $('#gate').style.display='flex';
   setTimeout(()=>{ const i=$('#gate-pw'); if(i) i.focus(); },120);
+})();
+// painel do apresentador ("Roteiro da demo") só existe em desenvolvimento; some no link publicado
+(function hidePresenter(){
+  if(isLocalHost()) return;
+  const b=$('#panelbtn'), p=$('#panel'); if(b) b.style.display='none'; if(p) p.style.display='none';
 })();
 </script>
 </body>
