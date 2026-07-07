@@ -20,6 +20,8 @@
   --shadow:0 10px 30px rgba(18,43,105,.10);
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* iOS: toques rápidos nas teclas não disparam zoom por duplo-toque (mantém o pinch-zoom p/ acessibilidade) */
+#kiosk, button, #s-home, .tapcta, .field{touch-action:manipulation}
 button,input,textarea,select{font-family:inherit} /* mata o Arial: botões herdam Nunito do body; Baloo 2 é redeclarada explicitamente em .btn/.pad/.seg/.tb-btn/.tb-title/.chips/.qwerty */
 html,body{height:100%}
 body{
