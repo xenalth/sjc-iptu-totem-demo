@@ -1,0 +1,1667 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPTU Digital — Prefeitura de São José dos Campos · Protótipo Totify</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --b900:#122B69; --b800:#18348A; --b700:#1D44A8; --b500:#2E6BD6; --b400:#3D8BE8;
+  --b200:#BBD6F5; --b100:#E7F0FC; --b50:#F3F8FE;
+  --pix:#32BCAD; --pix-dk:#1E9C8E;
+  --green:#1FA35C; --green-bg:#E4F6EC;
+  --amber:#D98E00; --amber-bg:#FFF4DC;
+  --red:#D65045; --red-bg:#FCE9E7;
+  --ink:#182247; --mut:#5A6584; --line:#DCE5F2;
+  --wa:#25D366;
+  --r-lg:26px; --r-md:18px; --r-sm:12px;
+  --shadow:0 10px 30px rgba(18,43,105,.10);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+button,input,textarea,select{font-family:inherit} /* mata o Arial: botões herdam Nunito do body; Baloo 2 é redeclarada explicitamente em .btn/.pad/.seg/.tb-btn/.tb-title/.chips/.qwerty */
+html,body{height:100%}
+body{
+  font-family:'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;
+  background:#0E1730;
+  background-image:radial-gradient(1200px 600px at 70% -10%, #1D3A7C55, transparent),
+                   radial-gradient(900px 500px at 10% 110%, #16295D66, transparent);
+  color:var(--ink); overflow:hidden;
+  display:flex; align-items:center; justify-content:center;
+}
+h1,h2,h3,.font-display{font-family:'Baloo 2','Nunito',system-ui,sans-serif}
+
+/* ===== Kiosk frame (fixed design canvas, scaled to fit) ===== */
+#stage{position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center}
+#kiosk{
+  width:560px; height:1000px; flex:none;
+  background:var(--b50);
+  border-radius:34px; overflow:hidden; position:relative;
+  box-shadow:0 0 0 10px #060B18, 0 0 0 12px #2A3B66, 0 40px 90px rgba(0,0,0,.55);
+  transform-origin:center center;
+  display:flex; flex-direction:column;
+}
+
+/* ===== Header ===== */
+#khead{
+  flex:none; background:linear-gradient(135deg,var(--b900),var(--b700) 60%,var(--b500));
+  color:#fff; padding:16px 20px 14px; display:flex; align-items:center; gap:12px;
+  position:relative; z-index:5;
+}
+#khead .brasao-wrap{position:relative;width:44px;height:44px;flex:none;display:block}
+#khead .brasao-wrap svg,#khead .brasao-wrap img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+#khead .htxt{flex:1; line-height:1.15}
+#khead .htxt b{font-family:'Baloo 2';font-size:17px;display:block;letter-spacing:.2px}
+#khead .htxt span{font-size:12px;opacity:.85}
+#kclock{font-family:'Baloo 2';font-size:17px;font-weight:700;opacity:.95}
+#a11y{
+  border:2px solid rgba(255,255,255,.55); background:rgba(255,255,255,.12); color:#fff;
+  font-family:'Baloo 2'; font-weight:800; font-size:15px; border-radius:12px;
+  padding:7px 12px; cursor:pointer;
+}
+#jose-mute-btn{border:2px solid rgba(255,255,255,.55);background:rgba(255,255,255,.12);border-radius:12px;
+  box-sizing:border-box;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#jose-mute-btn svg{width:19px;height:19px;display:block}
+#jose-mute-btn:active{transform:scale(.94)}
+/* A+ (acessibilidade): amplia TODO o conteúdo e overlays via zoom — o header/footer são chrome e ficam fixos.
+   zoom escala texto + caixas uniformemente; as telas rolam se precisar (o teclado continua ancorado embaixo). */
+#kiosk.bigfont #kmain, #kiosk.bigfont .overlay{zoom:1.18}
+#kiosk.bigfont #a11y{background:#F2A900;color:#122B69;border-color:transparent} /* A+ ativo = plataforma trabalhando; #122B69 sobre #F2A900 ~6.4:1 */
+
+/* ===== Stepper ===== */
+#stepper{flex:none; display:flex; gap:24px; padding:12px 20px 4px; background:var(--b50); z-index:4; justify-content:center}
+#stepper .stp{
+  flex:none; display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:800; color:#626E8C; /* inativo 2.28:1 → 4.76:1 sobre b50; ativo --b700 8.05:1 continua distinto */
+}
+#stepper .stp .dot{
+  width:24px;height:24px;border-radius:50%;background:#DDE5F3;color:#626E8C;
+  display:flex;align-items:center;justify-content:center;font-family:'Baloo 2';font-size:13px;flex:none;
+}
+#stepper .stp.on{color:var(--b700)}
+#stepper .stp.on .dot{background:var(--b500);color:#fff}
+#stepper .stp.done .dot{background:var(--green);color:#fff}
+#stepper .stp.done{color:var(--green)}
+#stepper.hidden{display:none}
+
+/* ===== Screens ===== */
+#kmain{flex:1; position:relative; overflow:hidden}
+.screen{
+  position:absolute; inset:0; display:flex; flex-direction:column; padding:18px 22px 16px;
+  opacity:0; pointer-events:none; transform:translateX(26px); transition:opacity .32s, transform .32s;
+  overflow-y:auto;
+}
+.screen.active{opacity:1; pointer-events:auto; transform:none}
+
+.topbar{display:flex; align-items:center; gap:10px; margin-bottom:8px}
+.tb-btn{
+  width:46px;height:46px;border-radius:14px;border:2px solid var(--line);background:#fff;
+  font-size:20px;color:var(--b700);cursor:pointer;font-weight:800;
+  display:flex;align-items:center;justify-content:center;padding:0;line-height:1;
+}
+.tb-title{flex:1;text-align:center;font-family:'Baloo 2';font-weight:800;font-size:19px;color:var(--b900)}
+
+.h-title{font-size:calc(27px*var(--fs-boost,1));font-weight:800;color:var(--b900);line-height:1.15;margin:6px 0 4px}
+.h-sub{font-size:calc(16.5px*var(--fs-boost,1));color:var(--mut);font-weight:600;margin-bottom:14px}
+
+/* badges */
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:800;border-radius:999px;padding:4px 10px;letter-spacing:.3px} /* 11.5→12.5px */
+.badge.f1{background:var(--green-bg);color:#147A43} /* --green #1FA35C 2.90:1 → #147A43 4.80:1 sobre green-bg; var --green intacta p/ stepper/check */
+.badge.f2{background:var(--b100);color:var(--b700)} /* --b500 4.36:1 → --b700 7.47:1 sobre b100 */
+.badge.demo{background:#F1EBFF;color:#7A4FD3;border:1.5px dashed #C9B4F5}
+
+/* cards & buttons */
+.card{background:#fff;border:2px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  border:none;border-radius:var(--r-md);cursor:pointer;
+  font-family:'Baloo 2';font-weight:800;font-size:19px;padding:18px 20px;width:100%;
+  transition:transform .08s, box-shadow .2s;
+}
+.btn:active{transform:scale(.97)}
+.btn-pri{background:linear-gradient(135deg,var(--b500),var(--b700));color:#fff;box-shadow:0 8px 18px rgba(18,43,105,.22)}
+.btn-pri:disabled{background:#C4CFE3;box-shadow:none;color:#fff;cursor:not-allowed}
+.btn-sec{background:#fff;color:var(--b700);border:2.5px solid var(--b200)}
+.btn-ghost{background:transparent;color:var(--mut);font-size:16px;padding:12px}
+.btn-green{background:linear-gradient(135deg,#27B569,#178A4C);color:#fff;box-shadow:0 8px 18px rgba(15,58,36,.22)}
+
+/* method cards (auth) */
+.mcard{
+  display:flex;align-items:center;gap:14px;background:#fff;border:2.5px solid var(--line);
+  border-radius:var(--r-lg);padding:14px 16px;cursor:pointer;text-align:left;width:100%;
+  transition:border-color .15s, transform .08s; box-shadow:var(--shadow); margin-bottom:12px;
+} /* padding vertical 16→14px p/ absorver descrições maiores nas telas de 4-5 cards */
+.mcard:active{transform:scale(.98);border-color:var(--b400)}
+.mcard .mico{
+  width:56px;height:56px;border-radius:16px;background:var(--b100);display:flex;align-items:center;justify-content:center;flex:none;
+}
+.mcard .mico svg{width:30px;height:30px}
+.mcard .mtx{flex:1}
+.mcard .mtx b{font-family:'Baloo 2';font-size:calc(17.5px*var(--fs-boost,1));color:var(--b900);display:block;margin-bottom:2px}
+.mcard .mtx span{font-size:calc(15px*var(--fs-boost,1));color:var(--mut);font-weight:600;line-height:1.3;display:block;margin-bottom:5px}
+.mcard .mtx span.badge{display:inline-flex;width:auto;margin-bottom:0;font-size:12.5px}
+.mcard .mtx span.badge.f1{color:#147A43}
+.mcard .mtx span.badge.f2{color:var(--b700)}
+.mcard .mtx span.badge.demo{color:#7A4FD3}
+.mcard .arrow{color:var(--b400);font-size:22px;font-weight:800}
+
+/* ===== payment screen: 1 recomendação + 2 grupos compactos ===== */
+/* Pix em destaque: card maior, borda azul forte, fundo b50, selo azul */
+#s-payment .pay-hero{
+  border:2.5px solid var(--b500); background:var(--b50);
+  padding:16px 18px; margin-bottom:22px;
+  box-shadow:0 10px 26px rgba(46,107,214,.16);
+}
+#s-payment .pay-hero .mico{width:60px;height:60px}
+#s-payment .pay-hero .mtx b{font-size:calc(19px*var(--fs-boost,1))}
+#s-payment .pay-hero .mtx>span:last-child{font-size:calc(15px*var(--fs-boost,1))}
+/* selo azul (NÃO âmbar): fundo b100, texto b700 ~7.47:1 */
+#s-payment .badge.pay-rec{
+  background:var(--b100);color:var(--b700);border:1.5px solid var(--b200);
+  margin-bottom:6px;width:auto;
+}
+/* rótulo de grupo: sentence case, peso 800, cor --mut — NÃO é o eyebrow uppercase */
+#s-payment .pay-glabel{
+  font-family:'Nunito';font-size:calc(14.5px*var(--fs-boost,1));font-weight:800;
+  color:var(--mut);margin:2px 2px 8px;
+}
+#s-payment .pay-glabel-2{margin-top:16px} /* respiro extra entre os dois grupos */
+/* cards compactos: mais baixos que o Pix, alvo ≥56px, descrição 1 linha */
+#s-payment .pay-compact{padding:11px 14px;margin-bottom:10px}
+#s-payment .pay-compact .mico{width:48px;height:48px;border-radius:14px}
+#s-payment .pay-compact .mtx b{font-size:calc(16.5px*var(--fs-boost,1));margin-bottom:1px}
+#s-payment .pay-compact .mtx span{
+  font-size:calc(14px*var(--fs-boost,1));margin-bottom:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+/* ===== keypad ===== */
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:auto}
+.pad button{
+  height:64px;border-radius:16px;border:2px solid var(--line);background:#fff;
+  font-family:'Baloo 2';font-size:24px;font-weight:700;color:var(--ink);cursor:pointer;
+  box-shadow:0 3px 0 #E3EAF5;
+}
+.pad button:active{transform:translateY(2px);box-shadow:none;background:var(--amber-bg);border-color:#F2A900} /* âmbar Totify só sob o dedo */
+.pad button.pk-aux{font-size:18px;color:var(--b500)}
+.pad button.pk-ok{background:#F2A900;border-color:#E09C00;color:#122B69;font-size:17px;box-shadow:0 3px 0 #C88C00}
+.pad button.pk-ok:active{background:#E09C00;border-color:#C88C00}
+.pad button.pk-ok:disabled{background:#EDF1F8;border-color:var(--line);color:#98A5C0;box-shadow:0 3px 0 #E3EAF5;cursor:not-allowed}
+.field{
+  background:#fff;border:2.5px solid var(--b200);border-radius:var(--r-md);
+  font-family:'Nunito';font-size:calc(26px*var(--fs-boost,1));font-weight:800;color:var(--b900);font-variant-numeric:tabular-nums;
+  padding:16px;text-align:center;letter-spacing:1.5px;min-height:66px;
+  display:flex;align-items:center;justify-content:center;
+}
+.field .ph{color:#6E7994;font-weight:600} /* era #B9C4DA 1.75:1 → 4.35:1 sobre #fff, distinto do valor digitado --b900 */
+/* chip de progresso da digitação (assinatura Totify — coaching, não alerta) */
+.type-hint{
+  display:none;align-self:center;margin:10px auto 0;
+  background:var(--amber-bg);color:#8A5F00;border:1.5px solid #F2C24D;border-radius:999px;
+  font-weight:800;font-size:13.5px;padding:5px 14px;letter-spacing:.2px;
+} /* #8A5F00 sobre #FFF4DC ~5.6:1; some via .show quando completo */
+.type-hint.show{display:inline-flex}
+.seg{display:flex;background:#E6EDF8;border-radius:14px;padding:5px;margin-bottom:14px}
+.seg button{
+  flex:1;border:none;border-radius:10px;padding:12px;font-family:'Baloo 2';font-weight:800;
+  font-size:15.5px;color:var(--mut);background:transparent;cursor:pointer;
+}
+.seg button.on{background:#fff;color:var(--b700);box-shadow:0 2px 8px rgba(18,43,105,.12)}
+
+/* code boxes */
+.codeboxes{display:flex;gap:9px;justify-content:center;margin:14px 0}
+.codeboxes .cb{
+  width:56px;height:66px;background:#fff;border:2.5px solid var(--b200);border-radius:14px;
+  font-family:'Nunito';font-size:30px;font-weight:800;color:var(--b900);font-variant-numeric:tabular-nums; /* código numérico: Nunito tabular */
+  display:flex;align-items:center;justify-content:center;
+}
+.codeboxes .cb.fill{border-color:var(--b500);background:var(--b100)}
+
+/* ===== boletos ===== */
+.bol{
+  display:flex;align-items:center;gap:12px;background:#fff;border:2.5px solid var(--line);
+  border-radius:var(--r-md);padding:14px;margin-bottom:10px;cursor:pointer;width:100%;text-align:left;
+}
+.bol.sel{border-color:var(--b500);background:var(--b50)}
+.bol .chk{
+  width:30px;height:30px;border-radius:9px;border:2.5px solid var(--b200);flex:none;
+  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:17px;
+}
+.bol.sel .chk{background:var(--b500);border-color:var(--b500)}
+.bol .btx{flex:1}
+.bol-year{font-size:14px;font-weight:800;color:var(--mut);margin:14px 2px 8px;text-transform:none}
+.bol-year:first-child{margin-top:0}
+.bol-year.venc{color:#B23A30}
+.bol.vencido-hi{border-color:#F0C0BA;background:#FEF6F5}
+.bol.vencido-hi.sel{border-color:var(--b500);background:var(--b50)}
+.bol .btx b{font-family:'Baloo 2';font-size:calc(16.5px*var(--fs-boost,1));color:var(--b900)}
+.bol .btx span{display:block;font-size:calc(14px*var(--fs-boost,1));color:var(--mut);font-weight:700}
+.bol .bval{text-align:right}
+.bol .bval b{font-family:'Nunito';font-weight:800;font-size:18px;color:var(--b900);font-variant-numeric:tabular-nums} /* valor: Baloo 2→Nunito tabular, w800 mantém peso vs. rótulo */
+.bol .bval .st{display:block;font-size:12.5px;font-weight:800;border-radius:999px;padding:2px 8px;margin-top:3px} /* pill: 11→12.5px */
+.st.aberto{background:var(--b100);color:var(--b700)} /* --b500 4.36:1 → --b700 7.47:1 sobre b100 */
+.st.vencido{background:var(--red-bg);color:#B23A30} /* --red #D65045 3.52:1 → #B23A30 5.07:1 sobre red-bg */
+.totalbar{
+  margin-top:auto;background:var(--b900);color:#fff;border-radius:var(--r-md);
+  padding:14px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;
+  position:sticky;bottom:84px;z-index:2;box-shadow:0 -8px 18px rgba(243,248,254,.9);
+}
+#bol-list .bol:last-child{margin-bottom:20px} /* dobro da margem padrão (10px) para o último item respirar antes da barra de total */
+#bol-ok{position:sticky;bottom:6px;z-index:2}
+#bol-more{position:sticky;bottom:172px;z-index:3;text-align:center;height:0;overflow:visible;opacity:0;transition:opacity .2s;pointer-events:none}
+#bol-more.show{opacity:1}
+#bol-more span{display:inline-block;transform:translateY(-14px);background:var(--b900);color:#fff;font-size:12px;font-weight:800;border-radius:999px;padding:5px 14px;box-shadow:0 4px 12px rgba(18,43,105,.3)}
+.totalbar span{font-size:13px;font-weight:700;opacity:.8}
+.totalbar b{font-family:'Nunito';font-weight:800;font-size:24px;font-variant-numeric:tabular-nums} /* valor: Baloo 2→Nunito tabular */
+
+/* property */
+.prop-row{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1.5px dashed var(--line);font-size:calc(15.5px*var(--fs-boost,1))}
+.prop-row:last-child{border-bottom:none}
+.prop-row span{color:var(--mut);font-weight:700}
+.prop-row b{color:var(--b900);text-align:right;font-weight:800;font-variant-numeric:tabular-nums} /* inscrição/valor venal: Nunito (herdada) tabular */
+
+/* ===== Pix ===== */
+.qrwrap{position:relative;background:#fff;border:2.5px solid var(--line);border-radius:var(--r-lg);padding:18px;display:flex;flex-direction:column;align-items:center;box-shadow:var(--shadow)}
+.qrwrap svg.qr{width:230px;height:230px}
+/* Pix expirado: inutiliza o QR (borra + esmaece) e carimba "EXPIRADO" por cima */
+.qrwrap.expired>*{filter:blur(6px);opacity:.25}
+.qrwrap.expired:after{
+  content:'EXPIRADO';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(14,23,48,.62);border-radius:calc(var(--r-lg) - 3px);
+  font-family:'Baloo 2';font-weight:800;font-size:26px;letter-spacing:2px;color:#fff;
+}
+.copiacola{
+  background:var(--b50);border:1.5px dashed var(--b200);border-radius:10px;font-size:12.5px;color:var(--mut);
+  padding:8px 10px;margin-top:10px;word-break:break-all;font-weight:600;max-width:100%;
+} /* copia-e-cola: 10.5→12.5px (Nunito herdada) */
+#pix-val{font-family:'Nunito';font-weight:800;font-variant-numeric:tabular-nums} /* valor Pix: sobrepõe .font-display (Baloo 2)→Nunito tabular */
+.pulse{display:inline-flex;align-items:center;gap:9px;font-weight:800;color:#0F6C60;font-size:15.5px} /* --pix-dk #1E9C8E 3.17:1 → #0F6C60 5.90:1 sobre b50; só o texto, --pix-dk intacto para outros usos */
+.pulse .pdot{width:12px;height:12px;border-radius:50%;background:var(--pix);animation:pls 1.1s infinite}
+@keyframes pls{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:.5}}
+
+/* ===== biometria ===== */
+.bio{position:relative;width:250px;height:320px;margin:10px auto;border-radius:125px/160px;
+  background:linear-gradient(180deg,#1B2A52,#0F1B3D);overflow:hidden;
+  border:4px solid var(--b200);box-shadow:var(--shadow)}
+.bio .face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:110px;opacity:.9}
+/* fotos reais do munícipe (Anderson): recorte no rosto (terço superior, centralizado) para preencher o oval com cabeça+ombros.
+   Ajuste fino do enquadramento: mexer em transform-origin/scale/object-position abaixo. */
+.bio .bio-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 26%;
+  transform:scale(1.7);transform-origin:50% 26%}
+.bio .bio-smile{opacity:0;transition:opacity .55s ease}
+.bio.ok .bio-smile{opacity:1}
+.bio .scan{position:absolute;left:0;right:0;height:5px;background:linear-gradient(90deg,transparent,#54E0C7,transparent);
+  box-shadow:0 0 18px #54E0C7;animation:scan 2.1s ease-in-out infinite;z-index:2}
+@keyframes scan{0%,100%{top:12%}50%{top:84%}}
+.bio.ok{border-color:var(--green)}
+.bio.ok .scan{display:none}
+
+/* ===== Seu José guide ===== */
+#jose{
+  position:absolute;left:14px;bottom:60px;z-index:20;display:flex;align-items:flex-end;gap:8px;
+  pointer-events:none;max-width:88%;
+  transition:opacity .3s, transform .3s;
+}
+#jose.hide{opacity:0;transform:translateY(15px)}
+/* telas de digitação: José vive no espaço morto ENTRE o conteúdo do topo e o teclado
+   (ancorado por bottom, logo acima do pad ~333px do fundo), sem cobrir toggle/campo/hint nem as teclas */
+#jose.jkeypad{bottom:432px;top:auto;left:14px;max-width:74%}
+#jose.jkeypad .jbub{margin-bottom:0}
+#jose.jkeypad.min{bottom:5px;top:auto}
+#jose .javt{
+  width:88px;height:88px;border-radius:50%;flex:none;overflow:hidden;position:relative;
+  border:3.5px solid #fff;box-shadow:0 8px 22px rgba(18,43,105,.28);background:#DCEBFB;
+  pointer-events:auto;cursor:pointer;transform-origin:left bottom;transition:transform .25s;
+}
+#jose.min .jbub{display:none}
+#jose.min{bottom:5px;left:10px}
+#jose.min .javt{transform:scale(.523);box-shadow:0 5px 14px rgba(18,43,105,.22)}
+#jose .javt img,#jose .javt svg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#jose .jbub{
+  background:#fff;border:2px solid var(--b200);border-radius:18px 18px 18px 4px;
+  padding:11px 14px;font-size:calc(15.5px*var(--fs-boost,1));font-weight:700;color:var(--b900);line-height:1.35;
+  box-shadow:0 8px 22px rgba(18,43,105,.18);margin-bottom:14px;
+  animation:bubin .35s ease;
+}
+@keyframes bubin{from{opacity:0;transform:translateY(8px) scale(.96)}to{opacity:1}}
+#jose .jname{font-size:12px;font-weight:800;color:var(--b700);letter-spacing:.8px;text-transform:uppercase;display:block;margin-bottom:2px} /* 10.5→12px; --b400 3.47:1 → --b700 8.59:1 sobre #fff */
+
+/* ===== home ===== */
+#s-home{padding:0;cursor:pointer;background:
+  radial-gradient(500px 400px at 85% 8%, #DCEBFF, transparent),
+  linear-gradient(180deg, var(--b50), #E9F1FB)}
+.home-inner{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 34px;text-align:center}
+.jose-hero{width:280px;height:280px;border-radius:50%;overflow:hidden;position:relative;background:#DCEBFB;
+  border:6px solid #fff;box-shadow:0 20px 50px rgba(18,43,105,.22);animation:flt 3.6s ease-in-out infinite}
+.jose-hero img,.jose-hero svg,.jose-hero video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+/* vídeo do José no avatar-guia (balão) preenche o círculo, com o mesmo recorte da imagem */
+#jose-avatar video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+@keyframes flt{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.home-bub{
+  background:#fff;border-radius:20px;padding:14px 20px;font-weight:800;font-size:16.5px;color:var(--b900);
+  box-shadow:var(--shadow);margin:22px 0 8px;position:relative;max-width:400px;line-height:1.4;
+}
+.home-bub:before{content:'';position:absolute;top:-10px;left:50%;transform:translateX(-50%);
+  border:11px solid transparent;border-bottom-color:#fff;border-top:none}
+.home-title{font-size:52px;font-weight:800;color:var(--b900);line-height:1;margin:14px 0 0}
+.home-title small{display:block;font-size:19px;color:var(--b500);font-weight:800;letter-spacing:2.5px;margin-bottom:6px}
+.home-sub{font-size:16.5px;color:var(--mut);font-weight:700;margin-top:10px}
+.tapcta{
+  margin-top:26px;background:linear-gradient(135deg,var(--b500),var(--b700));color:#fff;
+  font-family:'Baloo 2';font-weight:800;font-size:21px;border-radius:999px;padding:18px 38px;
+  box-shadow:0 12px 26px rgba(18,43,105,.30);animation:tap 1.6s ease-in-out infinite;
+}
+@keyframes tap{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.home-pays{display:flex;gap:8px;margin-top:26px;flex-wrap:wrap;justify-content:center}
+.home-pays span{background:#fff;border:1.5px solid var(--line);border-radius:999px;font-size:12.5px;font-weight:800;color:var(--mut);padding:7px 14px;display:inline-flex;align-items:center;gap:7px}
+.home-pays svg{width:16px;height:16px;flex:none}
+
+/* ===== footer ===== */
+#kfoot{
+  flex:none;background:#fff;border-top:1.5px solid var(--line);
+  padding:9px 20px;display:flex;align-items:center;justify-content:center;z-index:5;
+}
+#kfoot .pow{font-size:12.5px;color:var(--mut);font-weight:700;text-align:center}
+#kfoot .pow b{color:#9C6D00} /* Totify assinada: âmbar escurecido ~4.7:1 sobre #fff (proibido âmbar puro como texto) */
+#kfoot .pow .tdot{color:#F2A900;margin-right:3px} /* glifo decorativo âmbar puro */
+#kfoot .proto{font-size:10px;color:var(--mut);font-weight:700} /* #A6B1C9 2.15:1 → --mut 5.79:1 sobre #fff (só cor, tamanho mantido) */
+
+/* ===== overlays ===== */
+.overlay{
+  position:absolute;inset:0;z-index:40;background:rgba(14,23,48,.55);backdrop-filter:blur(3px);
+  display:none;align-items:center;justify-content:center;flex-direction:column;padding:30px;
+}
+.overlay.show{display:flex}
+.ov-card{background:#fff;border-radius:var(--r-lg);padding:26px;width:100%;max-width:420px;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.35)}
+
+/* printer */
+#printer .slotwrap{width:340px;text-align:center}
+#printer .slot{height:16px;background:#0B1226;border-radius:10px;box-shadow:inset 0 3px 8px #000;margin-bottom:0}
+#printer .paperclip{height:330px;overflow:hidden;display:flex;justify-content:center}
+#printer .paper{
+  width:270px;background:#fff;border-radius:0 0 12px 12px;padding:16px 16px 20px;
+  font-size:11px;color:#333;box-shadow:0 18px 40px rgba(0,0,0,.4);
+  border-top:3px solid #F2A900; /* filete âmbar Totify: a máquina que imprimiu */
+  transform:translateY(-105%);animation:ppr 2.6s ease-out forwards;text-align:center;
+}
+.paper .pwm{margin-top:10px;font-size:9px;color:#D98E00;text-transform:lowercase;letter-spacing:1px;font-weight:800} /* micro-wordmark térmico */
+@keyframes ppr{to{transform:translateY(0)}}
+.paper h4{font-family:'Baloo 2';font-size:13px;color:var(--b900);margin-bottom:2px}
+.paper .pline{border-top:1.5px dashed #CCC;margin:8px 0}
+.paper .pbig{font-family:'Nunito';font-weight:800;font-size:16px;color:var(--b900);font-variant-numeric:tabular-nums} /* valor no papel: Baloo 2→Nunito tabular */
+.paper svg.qr{width:110px;height:110px;margin:6px auto;display:block}
+.barcode{height:44px;margin:8px 2px;display:flex;align-items:stretch;gap:0}
+.barcode i{display:block;background:#111}
+#printer .ptxt{color:#fff;font-family:'Baloo 2';font-weight:800;font-size:19px;margin-top:20px}
+
+/* comprovante: grade de canais + linha de botões do modal */
+.rcpt-label{font-size:14px;font-weight:800;color:var(--mut);margin:16px 0 8px}
+.rcpt-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:420px;margin:0 auto}
+.rcpt-grid button{
+  border:2px solid var(--b200);background:#fff;color:var(--b700);border-radius:14px;
+  font-family:'Baloo 2';font-weight:800;font-size:15.5px;padding:13px 8px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+}
+.rcpt-grid button:active{transform:scale(.97);background:var(--b50)}
+.ov-row{display:flex;gap:10px}
+.ov-row .btn{flex:1;font-size:16px;padding:14px 8px}
+
+/* toast */
+#toast{
+  position:absolute;top:86px;left:50%;transform:translateX(-50%) translateY(-16px);z-index:60;
+  background:var(--b900);color:#fff;font-weight:800;font-size:14.5px;border-radius:999px;
+  padding:12px 22px;opacity:0;transition:.3s;pointer-events:none;white-space:nowrap;box-shadow:0 12px 30px rgba(0,0,0,.35);
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* wa / email preview */
+.chatprev{background:#E7E1D8;border-radius:var(--r-md);padding:16px;text-align:left;margin:14px 0}
+.chatprev .chd{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.chatprev .chd .cavt{width:34px;height:34px;border-radius:50%;background:var(--b700);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Baloo 2';font-weight:800;font-size:13px}
+.chatprev .chd b{font-size:13.5px}
+.chatprev .chd span{display:block;font-size:11px;color:#5B7A5E;font-weight:700}
+.wamsg{background:#fff;border-radius:4px 14px 14px 14px;padding:10px 12px;font-size:13.5px;line-height:1.45;box-shadow:0 1px 2px rgba(0,0,0,.12)} /* corpo do preview: 12.5→13.5px */
+.wamsg .link{color:#0B67C2;font-weight:800;text-decoration:underline;word-break:break-all}
+.wamsg .wtime{display:block;text-align:right;font-size:10px;color:#8AA;margin-top:4px}
+
+/* qwerty */
+.qwerty{display:flex;flex-direction:column;gap:8px;margin-top:auto}
+.qwerty .qrow{display:flex;gap:6px;justify-content:center}
+.qwerty button{
+  min-width:42px;height:52px;border-radius:10px;border:1.5px solid var(--line);background:#fff;
+  font-family:'Baloo 2';font-size:17px;font-weight:700;color:var(--ink);cursor:pointer;flex:1;max-width:52px;
+  box-shadow:0 2px 0 #E3EAF5;
+}
+.qwerty button.wide{max-width:none;flex:2;font-size:14px;color:var(--b500)}
+.qwerty button.q-ok{max-width:none;flex:1;background:#F2A900;border-color:#E09C00;color:#122B69;font-size:16px;box-shadow:0 2px 0 #C88C00}
+.qwerty button.q-ok:disabled{background:#EDF1F8;border-color:var(--line);color:#98A5C0;box-shadow:0 2px 0 #E3EAF5;cursor:not-allowed}
+.qwerty button:active{transform:translateY(2px);box-shadow:none;background:var(--amber-bg);border-color:#F2A900} /* âmbar Totify só sob o dedo */
+.chips{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+.chips button{border:1.5px solid var(--b200);background:var(--b50);color:var(--b700);font-weight:800;font-size:13px;border-radius:999px;padding:8px 14px;cursor:pointer}
+
+/* success check */
+.bigcheck{width:110px;height:110px;border-radius:50%;background:var(--green-bg);display:flex;align-items:center;justify-content:center;margin:8px auto 14px;animation:pop .45s cubic-bezier(.16,1,.3,1)}
+.bigcheck svg{width:58px;height:58px}
+@keyframes pop{from{transform:scale(.3);opacity:0}}
+
+/* ===== privacy line (property) ===== */
+.prop-priv{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:700;color:var(--mut);background:var(--b50);border-radius:10px;padding:8px 12px;margin:8px 2px 2px}
+
+/* ===== error / empty states ===== */
+.est{flex:1;display:flex;flex-direction:column}
+.est-ico{width:96px;height:96px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:46px;margin:6px auto 14px}
+.est-ico.err{background:var(--red-bg)}
+.est-ico.ok{background:var(--green-bg)}
+.est-actions{margin-top:auto;display:flex;flex-direction:column;gap:10px}
+.field.err{border-color:var(--red);background:var(--red-bg)}
+.codeboxes .cb.err{border-color:var(--red);background:var(--red-bg);color:var(--red)}
+.code-err{display:flex;align-items:center;justify-content:center;gap:7px;color:var(--red);font-weight:800;font-size:14px;margin:2px 0 10px}
+.pix-expired{text-align:center;margin-top:14px}
+.pix-expired .pxlabel{display:inline-flex;align-items:center;gap:8px;color:var(--red);font-weight:800;font-size:15.5px;margin-bottom:12px}
+
+/* ===== presenter panel ===== */
+#panelbtn{
+  position:fixed;top:18px;right:18px;z-index:100;background:#1B2C58;color:#fff;border:1.5px solid #3B4F8A;
+  border-radius:12px;font-family:'Baloo 2';font-weight:800;font-size:14px;padding:11px 16px;cursor:pointer;
+}
+#panel{
+  position:fixed;top:0;right:0;bottom:0;width:290px;z-index:99;background:#101B3A;color:#DCE4F5;
+  padding:70px 18px 18px;transform:translateX(100%);transition:.3s;overflow-y:auto;
+  border-left:1.5px solid #2A3B66;
+}
+#panel.open{transform:none}
+#panel h3{font-size:15px;color:#fff;margin-bottom:4px}
+#panel p.pd{font-size:11.5px;color:#8FA0C9;margin-bottom:14px;line-height:1.4}
+#panel .psec{font-size:10.5px;font-weight:800;letter-spacing:1.2px;color:#6C7FAF;margin:14px 0 6px;text-transform:uppercase}
+#panel button.pj{
+  display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;background:#1A2850;border:1.5px solid #2A3B66;
+  color:#DCE4F5;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:6px;
+}
+#panel button.pj:hover{background:#223364}
+#panel button.pj .bdg{font-size:9.5px;font-weight:800;border-radius:999px;padding:2px 7px}
+#panel .bdg.g{background:#123B26;color:#4CD98A}
+#panel .bdg.b{background:#16305E;color:#6FA9F2}
+#panel .bdg.r{background:#4A1D22;color:#F09A93}
+#panel button.pj.armed{border-color:#8A3B34;background:#3A1E22}
+#panel .plegend{font-size:11px;color:#8FA0C9;margin-top:14px;line-height:1.5}
+
+@media (max-width:820px){#panelbtn,#panel{display:none}}
+
+/* ===== focus visible (âmbar Totify — exceção de marca: foco é território da plataforma) ===== */
+button:focus-visible,[tabindex]:focus-visible{
+  outline:3px solid #F2A900; outline-offset:2px;
+}
+
+/* ===== marca d'água de protótipo (imensa, diagonal, sobre o conteúdo; abaixo dos modais) ===== */
+#watermark{position:absolute;inset:0;z-index:36;pointer-events:none;overflow:hidden;display:flex;align-items:center;justify-content:center}
+#watermark.off{display:none}
+#watermark .wm-inner{
+  transform:rotate(-32deg);width:210%;text-align:center;
+  font-family:'Baloo 2';font-weight:800;font-size:82px;line-height:1.42;letter-spacing:5px;word-spacing:14px;
+  color:#122B69;opacity:.072;text-transform:uppercase;
+}
+
+/* ===== reduced motion ===== */
+@media (prefers-reduced-motion: reduce){
+  .jose-hero,.tapcta,.pulse .pdot,.bio .scan{animation:none !important}
+  .jbub,.bigcheck{animation:none !important}
+  #printer .paper{animation:none !important;transform:none !important}
+  .screen{transition:opacity .12s !important;transform:none !important}
+  .screen:not(.active){transform:none !important}
+  #jose,#jose .javt,#panel,#toast,.btn,.mcard{transition:none !important}
+}
+
+/* ===== tela de senha (só aparece no link publicado; localhost fica livre p/ desenvolvimento) ===== */
+#gate{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:24px;
+  background:radial-gradient(1000px 600px at 70% -10%, #1D3A7C, transparent), linear-gradient(160deg,#122B69,#0E1730)}
+#gate .gate-card{width:100%;max-width:380px;background:#fff;border-radius:24px;padding:34px 28px;text-align:center;
+  box-shadow:0 30px 80px rgba(0,0,0,.4);font-family:'Nunito',sans-serif}
+#gate .gate-brasao{width:64px;height:64px;margin:0 auto 14px;display:block}
+#gate h2{font-family:'Baloo 2';font-size:22px;color:#122B69;margin-bottom:6px}
+#gate p{font-size:14.5px;color:#5A6584;font-weight:600;margin-bottom:20px;line-height:1.4}
+#gate input{width:100%;box-sizing:border-box;border:2.5px solid #BBD6F5;border-radius:14px;padding:15px 16px;
+  font-family:'Nunito';font-size:18px;font-weight:700;color:#122B69;text-align:center;letter-spacing:2px;margin-bottom:12px}
+#gate input:focus{outline:none;border-color:#2E6BD6}
+#gate button{width:100%;border:none;border-radius:14px;padding:15px;background:linear-gradient(135deg,#2E6BD6,#1D44A8);
+  color:#fff;font-family:'Baloo 2';font-weight:800;font-size:18px;cursor:pointer}
+#gate button:active{transform:scale(.98)}
+#gate .gate-err{color:#B23A30;font-weight:800;font-size:13.5px;min-height:18px;margin-top:12px}
+#gate .gate-foot{margin-top:18px;font-size:12px;font-weight:800;color:#9AA6C4}
+#gate .gate-foot b{color:#9C6D00}#gate .gate-foot .d{color:#F2A900}
+</style>
+</head>
+<body>
+
+<!-- barreira de senha (client-side; ativa só no link publicado, não no localhost) -->
+<div id="gate">
+  <div class="gate-card">
+    <svg class="gate-brasao" viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M24 3 42 9v13c0 11-7.4 18.6-18 23C13.4 40.6 6 33 6 22V9l18-6z" fill="#122B69" opacity=".12"/><path d="M24 7 38 11.6V22c0 8.7-5.7 14.9-14 18.7C15.7 36.9 10 30.7 10 22V11.6L24 7z" fill="#2E6BD6"/><path d="M24 13l2.6 5.3 5.9.9-4.2 4.1 1 5.8L24 26.4l-5.3 2.7 1-5.8-4.2-4.1 5.9-.9L24 13z" fill="#FFD24A"/></svg>
+    <h2>IPTU Digital · Protótipo</h2>
+    <p>Prefeitura de São José dos Campos<br>Digite a senha para visualizar a demonstração.</p>
+    <input id="gate-pw" type="password" inputmode="text" autocomplete="off" placeholder="Senha" onkeydown="if(event.key==='Enter')gateSubmit()">
+    <button onclick="gateSubmit()">Entrar</button>
+    <div class="gate-err" id="gate-err"></div>
+    <div class="gate-foot">Powered by <span class="d">●</span> <b>Totify</b></div>
+  </div>
+</div>
+
+<button id="panelbtn" onclick="document.getElementById('panel').classList.toggle('open')">☰ Roteiro da demo</button>
+<aside id="panel">
+  <h3>Roteiro da demonstração</h3>
+  <p class="pd">Atalhos para navegar entre os cenários durante a conversa com o secretário. O totem também navega por toque, como o munícipe usaria.</p>
+  <div class="psec">Identificação</div>
+  <button class="pj" onclick="jump('c1')">Cenário 1 · Inscrição/CPF <span class="bdg g">Fase 1</span></button>
+  <button class="pj" onclick="jump('c2')">Cenário 2 · Conta Munícipe + MFA <span class="bdg b">Evolução</span></button>
+  <button class="pj" onclick="jump('c3')">Cenário 3 · Código WhatsApp/SMS <span class="bdg b">Evolução</span></button>
+  <button class="pj" onclick="jump('c4')">Cenário 4 · Biometria facial <span class="bdg b">Evolução</span></button>
+  <div class="psec">Consulta</div>
+  <button class="pj" onclick="jump('property')">Dados do imóvel <span class="bdg g">Fase 1</span></button>
+  <button class="pj" onclick="jump('boletos')">Boletos em aberto <span class="bdg g">Fase 1</span></button>
+  <div class="psec">Pagamento</div>
+  <button class="pj" onclick="jump('payment')">Formas de pagamento</button>
+  <button class="pj" onclick="jump('pix')">Pix na tela <span class="bdg b">Evolução</span></button>
+  <button class="pj" onclick="jump('print-boleto')">Impressão do boleto <span class="bdg g">Fase 1</span></button>
+  <button class="pj" onclick="jump('wa')">Link por WhatsApp <span class="bdg b">Evolução</span></button>
+  <button class="pj" onclick="jump('email')">Link por e-mail <span class="bdg b">Evolução</span></button>
+  <div class="psec">Estados de erro</div>
+  <button class="pj" onclick="jump('err-consulta')">Consulta não encontrada <span class="bdg r">erro</span></button>
+  <button class="pj" onclick="jump('c3-erro')">Código incorreto (C3) <span class="bdg r">erro</span></button>
+  <button class="pj" onclick="jump('pix-expirado')">Pix expirado <span class="bdg r">erro</span></button>
+  <button class="pj" onclick="jump('impressora-falha')" id="pj-print-fail">Impressora indisponível <span class="bdg r" id="pf-badge">próx. off</span></button>
+  <button class="pj" onclick="jump('sem-boletos')">Em dia (sem boletos) <span class="bdg g">vazio</span></button>
+  <div class="psec">Geral</div>
+  <button class="pj" onclick="jump('home')">⟲ Reiniciar (tela inicial)</button>
+  <button class="pj" onclick="toggleWatermark()" id="wm-toggle">Marca d'água: <span class="bdg g" id="wm-badge">visível</span></button>
+  <p class="plegend"><b style="color:#4CD98A">Fase 1 (obrigatório):</b> inscrição/CPF, dados do imóvel, boletos em aberto, impressão do boleto.<br><br><b style="color:#6FA9F2">Evolução:</b> Conta Munícipe + MFA, código WhatsApp/SMS, biometria, Pix na tela, links por WhatsApp/e-mail, QR Code Pix impresso.<br><br>Protótipo de demonstração com dados ilustrativos. A marca d'água "PROTÓTIPO" pode ser exibida ou ocultada em <b>Geral</b>, acima.</p>
+</aside>
+
+<div id="stage">
+<div id="kiosk">
+
+  <!-- marca d'água de protótipo (imensa, diagonal) — presença configurável no painel do apresentador -->
+  <div id="watermark" aria-hidden="true"><div class="wm-inner">protótipo&nbsp;totify&nbsp;·&nbsp;  protótipo&nbsp;totify&nbsp;·&nbsp;  protótipo&nbsp;totify&nbsp;·&nbsp;  protótipo&nbsp;totify&nbsp;·&nbsp;  protótipo&nbsp;totify&nbsp;·&nbsp;  protótipo&nbsp;totify&nbsp;·&nbsp;  protótipo&nbsp;totify&nbsp;·&nbsp;  protótipo&nbsp;totify&nbsp;·&nbsp;  protótipo&nbsp;totify&nbsp;·&nbsp;  protótipo&nbsp;totify&nbsp;·&nbsp;  protótipo&nbsp;totify&nbsp;·&nbsp;  protótipo&nbsp;totify&nbsp;·&nbsp;  protótipo&nbsp;totify&nbsp;·&nbsp;  protótipo&nbsp;totify&nbsp;·&nbsp;  protótipo&nbsp;totify&nbsp;·&nbsp;  protótipo&nbsp;totify&nbsp;·&nbsp;  protótipo&nbsp;totify&nbsp;·&nbsp;  protótipo&nbsp;totify&nbsp;·&nbsp;  protótipo&nbsp;totify&nbsp;·&nbsp;  protótipo&nbsp;totify&nbsp;·&nbsp;  </div></div>
+
+  <header id="khead">
+    <span class="brasao-wrap">
+      <svg class="brasao" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <path d="M24 3 42 9v13c0 11-7.4 18.6-18 23C13.4 40.6 6 33 6 22V9l18-6z" fill="#fff" opacity=".95"/>
+        <path d="M24 7 38 11.6V22c0 8.7-5.7 14.9-14 18.7C15.7 36.9 10 30.7 10 22V11.6L24 7z" fill="#2E6BD6"/>
+        <path d="M24 13l2.6 5.3 5.9.9-4.2 4.1 1 5.8L24 26.4l-5.3 2.7 1-5.8-4.2-4.1 5.9-.9L24 13z" fill="#FFD24A"/>
+      </svg>
+      <img src="assets/brasao-sjc.png" alt="Brasão de São José dos Campos" onerror="this.remove()">
+    </span>
+    <div class="htxt"><b>Prefeitura de São José dos Campos</b><span>IPTU Digital</span></div>
+    <div id="kclock">--:--</div>
+    <button id="a11y" title="Aumentar letras" aria-label="Aumentar tamanho das letras" onclick="event.stopPropagation();toggleA11y()">A+</button>
+    <button id="jose-mute-btn" title="Som do Seu José" aria-label="Ativar o som do Seu José" onclick="event.stopPropagation();toggleJoseMute()"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg></button>
+  </header>
+
+  <div id="stepper">
+    <div class="stp" data-step="1"><span class="dot">1</span> Identificação</div>
+    <div class="stp" data-step="2"><span class="dot">2</span> Conferência</div>
+    <div class="stp" data-step="3"><span class="dot">3</span> Pagamento</div>
+  </div>
+
+  <main id="kmain">
+
+    <!-- ============ HOME ============ -->
+    <section class="screen active" id="s-home" onclick="go('s-auth')">
+      <div class="home-inner">
+        <div class="jose-hero" id="jose-hero">
+          <video id="jose-video" class="jose-vid" src="assets/seu-jose-boasvindas.mp4" autoplay loop muted playsinline preload="auto" onerror="joseVideoFallback()"></video>
+        </div>
+        <div class="home-bub">“Oi! Eu sou o <b>Seu José</b> e vou te ajudar a consultar e pagar o IPTU. É rapidinho!”</div>
+        <h1 class="home-title"><small>SÃO JOSÉ DOS CAMPOS</small>IPTU Digital</h1>
+        <p class="home-sub">Consulte seus boletos e pague em menos de 2 minutos</p>
+        <div class="tapcta">Toque para começar</div>
+        <div class="home-pays">
+          <span><svg viewBox="0 0 24 24" fill="#32BCAD" aria-hidden="true"><path d="M17.2 7.7c-1 0-2 .4-2.7 1.1l-1.9 1.9a.85.85 0 0 1-1.2 0L9.5 8.8a3.9 3.9 0 0 0-2.7-1.1h-.7l3.3-3.3a3.7 3.7 0 0 1 5.2 0l3.3 3.3h-.7z"/><path d="M17.2 16.3c-1 0-2-.4-2.7-1.1l-1.9-1.9a.85.85 0 0 0-1.2 0l-1.9 1.9a3.9 3.9 0 0 1-2.7 1.1h-.7l3.3 3.3a3.7 3.7 0 0 0 5.2 0l3.3-3.3h-.7z"/><path d="M20.9 9.4l-1.7-1.7h-2c-.7 0-1.3.3-1.8.8l-1.9 1.9a1.9 1.9 0 0 1-2.8 0L8.6 8.5c-.5-.5-1.1-.8-1.8-.8h-1.7L3.4 9.4a3.7 3.7 0 0 0 0 5.2l1.7 1.7h1.7c.7 0 1.3-.3 1.8-.8l1.9-1.9a1.9 1.9 0 0 1 2.8 0l1.9 1.9c.5.5 1.1.8 1.8.8h2l1.7-1.7a3.7 3.7 0 0 0 0-5.2z"/></svg> Pix</span>
+          <span><svg viewBox="0 0 24 24" fill="#5A6584" aria-hidden="true"><path d="M3 5h2v14H3zM6.5 5H8v14H6.5zM9.5 5h2.4v14H9.5zM13.4 5h1.2v14h-1.2zM16.1 5h1v14h-1zM18.6 5h2.4v14h-2.4z"/></svg> Boleto</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ AUTH (escolha do cenário) ============ -->
+    <section class="screen" id="s-auth">
+      <div class="topbar"><button class="tb-btn" aria-label="Voltar" onclick="back()">‹</button><div class="tb-title">Identificação</div><button class="tb-btn" aria-label="Início" onclick="go('s-home')">⌂</button></div>
+      <h2 class="h-title">Como você quer se identificar?</h2>
+      <p class="h-sub">Escolha a forma mais prática para você.</p>
+
+      <button class="mcard" onclick="startC1()">
+        <div class="mico"><svg viewBox="0 0 24 24" fill="none" stroke="#2E6BD6" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6M7 17h4"/></svg></div>
+        <div class="mtx"><b>Inscrição imobiliária ou CPF</b><span>Digite o número que está no carnê do IPTU ou seu CPF.</span></div>
+        <div class="arrow">›</div>
+      </button>
+
+      <button class="mcard" onclick="startC2()">
+        <div class="mico"><svg viewBox="0 0 24 24" fill="none" stroke="#2E6BD6" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg></div>
+        <div class="mtx"><b>Conta Munícipe</b><span>Entre com sua conta, vincule a inscrição ao CPF e cadastre o celular.</span></div>
+        <div class="arrow">›</div>
+      </button>
+
+      <button class="mcard" onclick="startC3()">
+        <div class="mico"><svg viewBox="0 0 24 24" fill="none" stroke="#2E6BD6" stroke-width="2"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg></div>
+        <div class="mtx"><b>Código por WhatsApp e SMS</b><span>Para quem já tem o celular cadastrado na Prefeitura.</span></div>
+        <div class="arrow">›</div>
+      </button>
+
+      <button class="mcard" onclick="startC4()">
+        <div class="mico"><svg viewBox="0 0 24 24" fill="none" stroke="#2E6BD6" stroke-width="2"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="9.5" cy="10.5" r=".8" fill="#2E6BD6"/><circle cx="14.5" cy="10.5" r=".8" fill="#2E6BD6"/><path d="M9.5 14.5c.8.8 4.2.8 5 0"/></svg></div>
+        <div class="mtx"><b>Biometria facial</b><span>Olhe para a câmera e seja reconhecido automaticamente.</span></div>
+        <div class="arrow">›</div>
+      </button>
+    </section>
+
+    <!-- ============ C1: inscrição / CPF ============ -->
+    <section class="screen" id="s-c1">
+      <div class="topbar"><button class="tb-btn" aria-label="Voltar" onclick="back()">‹</button><div class="tb-title">Inscrição ou CPF</div><button class="tb-btn" aria-label="Início" onclick="go('s-home')">⌂</button></div>
+      <div class="seg">
+        <button id="seg-insc" class="on" onclick="setDocType('inscricao')">Inscrição imobiliária</button>
+        <button id="seg-cpf" onclick="setDocType('cpf')">CPF</button>
+      </div>
+      <div class="field" id="c1-field" role="textbox" aria-readonly="true" aria-label="Número da inscrição imobiliária ou CPF digitado" aria-live="polite"><span class="ph">00.0000.0000.0000</span></div>
+      <span class="type-hint" id="c1-hint-chip"></span>
+      <p class="h-sub" id="c1-hint" style="margin-top:10px">A inscrição imobiliária está na capa do carnê do IPTU.</p>
+      <div class="pad" id="pad-c1"></div>
+    </section>
+
+    <!-- ============ C2: conta munícipe ============ -->
+    <section class="screen" id="s-c2">
+      <div class="topbar"><button class="tb-btn" aria-label="Voltar" onclick="back()">‹</button><div class="tb-title">Conta Munícipe</div><button class="tb-btn" aria-label="Início" onclick="go('s-home')">⌂</button></div>
+
+      <div id="c2-s1">
+        <h2 class="h-title">Entre com sua Conta Munícipe</h2>
+        <p class="h-sub">A mesma conta usada nos serviços digitais da Prefeitura.</p>
+        <div class="card" style="padding:22px;text-align:center">
+          <div style="width:64px;height:64px;border-radius:18px;background:var(--b100);display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#2E6BD6" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+          </div>
+          <b class="font-display" style="font-size:19px;color:var(--b900)">Conta Munícipe SJC</b>
+          <p style="font-size:14px;color:var(--mut);font-weight:600;margin:6px 0 16px">CPF + senha cadastrados no portal da Prefeitura</p>
+          <button class="btn btn-pri" onclick="c2Step(2)">Entrar</button>
+          <div style="margin-top:10px"><span class="badge demo">demo · login simulado</span></div>
+        </div>
+      </div>
+
+      <div id="c2-s2" style="display:none">
+        <h2 class="h-title">Olá, Anderson! 👋</h2>
+        <p class="h-sub">Encontramos <b>2 imóveis</b> para vincular ao seu CPF. Selecione:</p>
+        <button class="mcard" onclick="c2Pick(0)">
+          <div class="mico">🏠</div>
+          <div class="mtx"><b>Rua Presidente Epitácio, 123</b><span>Jardim Aquarius · Inscrição 45.0123.0456.0001</span></div>
+          <div class="arrow">›</div>
+        </button>
+        <button class="mcard" onclick="c2Pick(1)">
+          <div class="mico">🏢</div>
+          <div class="mtx"><b>Av. Cassiano Ricardo, 550 · Apto 92</b><span>Parque Residencial Aquarius · Inscrição 45.0788.0031.0092</span></div>
+          <div class="arrow">›</div>
+        </button>
+      </div>
+
+      <div id="c2-s3" style="display:none;flex:1;flex-direction:column">
+        <h2 class="h-title">Cadastre seu celular</h2>
+        <p class="h-sub">Você receberá códigos de segurança por WhatsApp e SMS nas próximas visitas.</p>
+        <div class="field" id="c2-phone" role="textbox" aria-readonly="true" aria-label="Número de celular digitado" aria-live="polite"><span class="ph">(12) 90000-0000</span></div>
+        <span class="type-hint" id="c2-hint-chip"></span>
+        <div class="pad" id="pad-c2"></div>
+      </div>
+    </section>
+
+    <!-- ============ C3: código WhatsApp/SMS ============ -->
+    <section class="screen" id="s-c3">
+      <div class="topbar"><button class="tb-btn" aria-label="Voltar" onclick="back()">‹</button><div class="tb-title">Código de acesso</div><button class="tb-btn" aria-label="Início" onclick="go('s-home')">⌂</button></div>
+      <h2 class="h-title">Digite o código de 6 números</h2>
+      <p class="h-sub">Enviamos por <b style="color:#177A3E">WhatsApp</b> e <b>SMS</b> para o celular cadastrado na Prefeitura, terminado em <b>••41</b>.</p>
+      <div class="codeboxes" id="c3-boxes" role="group" aria-label="Código de verificação de 6 números" aria-live="polite"></div>
+      <div style="text-align:center;margin-bottom:6px"><button class="btn-ghost btn" style="width:auto;display:inline-flex" onclick="toast('Código reenviado por WhatsApp e SMS ✓')">Reenviar código</button></div>
+      <div class="pad" id="pad-c3"></div>
+    </section>
+
+    <!-- ============ C4: biometria ============ -->
+    <section class="screen" id="s-c4">
+      <div class="topbar"><button class="tb-btn" aria-label="Voltar" onclick="back()">‹</button><div class="tb-title">Biometria facial</div><button class="tb-btn" aria-label="Início" onclick="go('s-home')">⌂</button></div>
+      <h2 class="h-title" style="text-align:center">Olhe para a câmera</h2>
+      <div class="bio" id="bio"><div class="face">🙂</div><img class="bio-photo" id="bio-neutro" src="assets/anderson-neutro.jpg" alt="" aria-hidden="true" onerror="this.remove()"><img class="bio-photo bio-smile" id="bio-sorrindo" src="assets/anderson-sorrindo.jpg" alt="" aria-hidden="true" onerror="this.remove()"><div class="scan"></div></div>
+      <p class="h-sub" id="bio-status" role="status" aria-live="polite" style="text-align:center;font-size:17px">Posicione seu rosto dentro da moldura…</p>
+      <div style="text-align:center"><span class="badge demo">demo · reconhecimento simulado</span></div>
+    </section>
+
+    <!-- ============ PROPERTY ============ -->
+    <section class="screen" id="s-property">
+      <div class="topbar"><button class="tb-btn" aria-label="Voltar" onclick="back()">‹</button><div class="tb-title">Dados do imóvel</div><button class="tb-btn" aria-label="Início" onclick="go('s-home')">⌂</button></div>
+      <h2 class="h-title">Confira os dados do imóvel</h2>
+      <p class="h-sub">Verifique se as informações estão corretas antes de continuar.</p>
+      <div class="card" style="padding:8px 18px" id="prop-card"></div>
+      <div style="height:14px"></div>
+      <button class="btn btn-pri" onclick="go('s-boletos')">Sim, é este imóvel</button>
+      <div style="height:8px"></div>
+      <button class="btn btn-sec" onclick="go('s-auth')">Pesquisar outro imóvel</button>
+    </section>
+
+    <!-- ============ BOLETOS ============ -->
+    <section class="screen" id="s-boletos">
+      <div class="topbar"><button class="tb-btn" aria-label="Voltar" onclick="back()">‹</button><div class="tb-title">Boletos em aberto</div><button class="tb-btn" aria-label="Início" onclick="go('s-home')">⌂</button></div>
+      <h2 class="h-title">Suas cobranças de IPTU</h2>
+      <p class="h-sub">Encontramos <b id="bol-count"></b> para este imóvel, incluindo anos anteriores. As vencidas aparecem primeiro. Toque para selecionar.</p>
+      <div id="bol-list"></div>
+      <div id="bol-more"><span>▾ role para ver todas</span></div>
+      <div class="totalbar"><span>Total selecionado</span><b id="bol-total">R$ 0,00</b></div>
+      <button class="btn btn-pri" id="bol-ok" disabled onclick="go('s-payment')">Ir para pagamento</button>
+    </section>
+
+    <!-- ============ PAYMENT ============ -->
+    <section class="screen" id="s-payment">
+      <div class="topbar"><button class="tb-btn" aria-label="Voltar" onclick="back()">‹</button><div class="tb-title">Pagamento</div><button class="tb-btn" aria-label="Início" onclick="go('s-home')">⌂</button></div>
+      <h2 class="h-title">Como você prefere pagar?</h2>
+      <p class="h-sub">Valor selecionado: <b id="pay-total" style="color:var(--b900)"></b></p>
+
+      <!-- Recomendação destacada: Pix (melhor desfecho — liquidação na hora) -->
+      <button class="mcard pay-hero" onclick="startPix()">
+        <div class="mico" style="background:#D3F0EC"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="#1E9C8E" stroke-width="2"><path d="M7.5 4.5 4 8l3.5 3.5M16.5 4.5 20 8l-3.5 3.5M7.5 12.5 4 16l3.5 3.5M16.5 12.5 20 16l-3.5 3.5"/></svg></div>
+        <div class="mtx">
+          <span class="badge pay-rec">★ Recomendado · confirma na hora</span>
+          <b>Pix na tela</b>
+          <span>Escaneie o QR Code com seu celular. Confirmação na hora.</span>
+        </div>
+        <div class="arrow">›</div>
+      </button>
+
+      <!-- Grupo: Imprimir e levar -->
+      <div class="pay-glabel">Imprimir e pagar depois</div>
+      <button class="mcard pay-compact" onclick="confirmPrint('boleto')">
+        <div class="mico"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#2E6BD6" stroke-width="2"><path d="M7 8V3h10v5M7 17H4a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-3"/><rect x="7" y="14" width="10" height="7"/></svg></div>
+        <div class="mtx"><b>Imprimir boleto</b><span>Pague no banco, lotérica ou app.</span></div>
+        <div class="arrow">›</div>
+      </button>
+
+      <button class="mcard pay-compact" onclick="confirmPrint('qrpix')">
+        <div class="mico" style="background:#E0F5F2"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#1E9C8E" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM18 18h3v3h-3z"/></svg></div>
+        <div class="mtx"><b>Imprimir QR Code Pix</b><span>Pague pelo celular em até 24 horas.</span></div>
+        <div class="arrow">›</div>
+      </button>
+
+      <!-- Grupo: Receber no celular -->
+      <div class="pay-glabel pay-glabel-2">Receber link</div>
+      <button class="mcard pay-compact" onclick="startSend('wa')">
+        <div class="mico" style="background:#E3F8EA"><svg viewBox="0 0 24 24" width="26" height="26" fill="#1E9C4F"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5.1-1.3A10 10 0 1 0 12 2zm5 13.9c-.2.6-1.2 1.2-1.7 1.2-.4.1-1 .1-1.6-.1-2.6-.8-4.6-2.7-5.9-5-.5-.9-.8-2-.2-2.7l.7-.8c.2-.2.6-.2.8 0l1.2 1.7c.1.2.1.5 0 .7l-.5.7c.5 1.1 1.7 2.3 2.9 2.9l.6-.6c.2-.2.5-.2.7-.1l1.8 1c.3.2.3.6.2 1.1z"/></svg></div>
+        <div class="mtx"><b>Link por WhatsApp</b><span>Enviamos para o seu celular.</span></div>
+        <div class="arrow">›</div>
+      </button>
+
+      <button class="mcard pay-compact" onclick="startSend('email')">
+        <div class="mico"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#2E6BD6" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></div>
+        <div class="mtx"><b>Link por e-mail</b><span>Enviamos para o seu e-mail.</span></div>
+        <div class="arrow">›</div>
+      </button>
+    </section>
+
+    <!-- ============ PIX ============ -->
+    <section class="screen" id="s-pix">
+      <div class="topbar"><button class="tb-btn" aria-label="Voltar" onclick="back()">‹</button><div class="tb-title">Pagamento via Pix</div><button class="tb-btn" aria-label="Início" onclick="go('s-home')">⌂</button></div>
+      <div style="text-align:center;margin-bottom:8px">
+        <span style="font-size:14px;color:var(--mut);font-weight:700">Valor a pagar</span>
+        <div class="font-display" style="font-size:34px;font-weight:800;color:var(--b900)" id="pix-val"></div>
+      </div>
+      <div class="qrwrap">
+        <div id="pix-qr"></div>
+        <div class="copiacola" id="pix-copia"></div>
+      </div>
+      <div style="text-align:center;margin-top:14px" role="status" aria-live="polite">
+        <div class="pulse"><span class="pdot"></span> Aguardando pagamento… <b id="pix-timer" aria-hidden="true" style="margin-left:4px">4:59</b></div>
+        <div style="margin-top:10px"><span class="badge demo">demo · confirma sozinho em alguns segundos</span></div>
+      </div>
+    </section>
+
+    <!-- ============ SEND: phone (WhatsApp) ============ -->
+    <section class="screen" id="s-phone">
+      <div class="topbar"><button class="tb-btn" aria-label="Voltar" onclick="back()">‹</button><div class="tb-title" id="phone-tb">Link por WhatsApp</div><button class="tb-btn" aria-label="Início" onclick="go('s-home')">⌂</button></div>
+      <h2 class="h-title">Qual o número do seu celular?</h2>
+      <p class="h-sub" id="phone-sub">Enviaremos o link de pagamento pelo WhatsApp <b>156</b> da Prefeitura — <b>(12) 99710-0156</b>.</p>
+      <div class="field" id="phone-field" role="textbox" aria-readonly="true" aria-label="Número de celular digitado" aria-live="polite"><span class="ph">(12) 90000-0000</span></div>
+      <span class="type-hint" id="phone-hint-chip"></span>
+      <div class="pad" id="pad-phone"></div>
+    </section>
+
+    <!-- ============ SEND: email ============ -->
+    <section class="screen" id="s-email">
+      <div class="topbar"><button class="tb-btn" aria-label="Voltar" onclick="back()">‹</button><div class="tb-title" id="email-tb">Link por e-mail</div><button class="tb-btn" aria-label="Início" onclick="go('s-home')">⌂</button></div>
+      <h2 class="h-title">Qual o seu e-mail?</h2>
+      <div class="field" id="email-field" role="textbox" aria-readonly="true" aria-label="Endereço de e-mail digitado" aria-live="polite" style="font-size:19px;letter-spacing:.5px"><span class="ph">seuemail@exemplo.com</span></div>
+      <div class="chips">
+        <button onclick="emailChip('@gmail.com')">@gmail.com</button>
+        <button onclick="emailChip('@hotmail.com')">@hotmail.com</button>
+        <button onclick="emailChip('.com.br')">.com.br</button>
+      </div>
+      <div class="qwerty" id="qwerty"></div>
+    </section>
+
+    <!-- ============ END (dinâmica) ============ -->
+    <section class="screen" id="s-end">
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;text-align:center;padding:0 8px">
+        <div class="bigcheck"><svg viewBox="0 0 24 24" fill="none" stroke="#1FA35C" stroke-width="3" stroke-linecap="round"><path d="M4 12.5 9.5 18 20 6.5"/></svg></div>
+        <h2 class="h-title" style="text-align:center" id="end-title"></h2>
+        <p class="h-sub" style="text-align:center" id="end-sub"></p>
+        <div id="end-extra"></div>
+        <div id="end-actions" style="margin-top:16px"></div>
+      </div>
+    </section>
+
+    <!-- ============ ERRO: consulta não encontrada ============ -->
+    <section class="screen" id="s-err-consulta">
+      <div class="topbar"><button class="tb-btn" aria-label="Voltar" onclick="back()">‹</button><div class="tb-title">Consulta</div><button class="tb-btn" aria-label="Início" onclick="go('s-home')">⌂</button></div>
+      <div class="est">
+        <div class="est-ico err">🔎</div>
+        <h2 class="h-title" style="text-align:center">Não encontramos esse cadastro</h2>
+        <p class="h-sub" style="text-align:center">Confira o número no carnê do IPTU. Um dígito trocado já muda o resultado.</p>
+        <div class="est-actions">
+          <button class="btn btn-ghost" onclick="toast('Procure o guichê de atendimento no saguão 🤝')">Procurar o guichê de atendimento</button>
+          <button class="btn btn-sec" onclick="go('s-auth')">Tentar outro método</button>
+          <button class="btn btn-pri" onclick="go('s-c1')">Tentar de novo</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VAZIO: sem boletos em aberto ============ -->
+    <section class="screen" id="s-emdia">
+      <div class="topbar"><button class="tb-btn" aria-label="Voltar" onclick="back()">‹</button><div class="tb-title">Boletos em aberto</div><button class="tb-btn" aria-label="Início" onclick="go('s-home')">⌂</button></div>
+      <div class="est">
+        <div class="est-ico ok">🎉</div>
+        <h2 class="h-title" style="text-align:center">Você está em dia!</h2>
+        <p class="h-sub" style="text-align:center">Não há nenhum boleto de IPTU em aberto para este imóvel — nem deste ano, nem de anos anteriores. Nada a pagar por aqui.</p>
+        <div class="est-actions">
+          <button class="btn btn-pri" onclick="go('s-home')">Encerrar</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Seu José guide -->
+  <div id="jose">
+    <div class="javt" id="jose-avatar" onclick="joseWake()"></div>
+    <div class="jbub"><span class="jname">Seu José</span><span id="jose-line" aria-live="polite" aria-atomic="true"></span></div>
+  </div>
+
+  <footer id="kfoot">
+    <span class="pow">Powered by <b><span class="tdot" aria-hidden="true">●</span>Totify</b> · tecnologia de autoatendimento</span>
+  </footer>
+
+  <!-- printer overlay -->
+  <div class="overlay" id="printer">
+    <div class="slotwrap">
+      <div class="slot"></div>
+      <div class="paperclip"><div class="paper" id="paper"></div></div>
+      <div class="ptxt" id="printer-txt">Imprimindo…</div>
+    </div>
+  </div>
+
+  <!-- idle overlay -->
+  <div class="overlay" id="idle">
+    <div class="ov-card" role="dialog" aria-modal="true" aria-labelledby="idle-title">
+      <div style="font-size:52px;margin-bottom:8px" aria-hidden="true">👋</div>
+      <h3 id="idle-title" class="font-display" style="font-size:22px;color:var(--b900)">Você ainda está aí?</h3>
+      <p role="alert" aria-live="assertive" style="font-size:14.5px;color:var(--mut);font-weight:600;margin:8px 0 18px">Por segurança, vamos encerrar o atendimento.</p>
+      <div class="ov-row">
+        <button class="btn btn-sec" id="idle-sair" onclick="idleExit()">Sair (15s)</button>
+        <button class="btn btn-pri" onclick="idleKeep()">Continuar atendimento</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- confirm overlay (ações físicas / envio) -->
+  <div class="overlay" id="confirm">
+    <div class="ov-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <div style="font-size:44px;margin-bottom:6px" id="confirm-ico" aria-hidden="true">🖨️</div>
+      <h3 class="font-display" style="font-size:21px;color:var(--b900)" id="confirm-title"></h3>
+      <p style="font-size:15px;color:var(--mut);font-weight:600;margin:10px 0 18px" id="confirm-msg"></p>
+      <button class="btn btn-pri" id="confirm-ok">Confirmar</button>
+      <div style="height:8px"></div>
+      <button class="btn btn-sec" id="confirm-cancel" onclick="confirmClose()">Corrigir</button>
+    </div>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+</div>
+</div>
+
+<script>
+/* ================= helpers ================= */
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+const money=v=>'R$ '+v.toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+
+/* ================= Seu José (imagem + fallback SVG) ================= */
+function joseSVG(pose){
+  // arms per pose
+  let arm='';
+  if(pose==='boasvindas') arm='<g transform="rotate(-24 152 128)"><rect x="144" y="86" width="22" height="52" rx="11" fill="#E8DCC8"/><circle cx="155" cy="82" r="15" fill="#F6C9A0"/></g>';
+  if(pose==='apontando')  arm='<rect x="138" y="120" width="52" height="21" rx="10.5" fill="#E8DCC8"/><circle cx="188" cy="130" r="13" fill="#F6C9A0"/><rect x="192" y="125" width="16" height="9" rx="4.5" fill="#F6C9A0"/>';
+  if(pose==='comemorando')arm='<g transform="rotate(-38 150 120)"><rect x="142" y="80" width="22" height="52" rx="11" fill="#E8DCC8"/><circle cx="153" cy="76" r="14" fill="#F6C9A0"/><rect x="146" y="56" width="12" height="22" rx="6" fill="#F6C9A0"/></g>';
+  if(pose==='celular')    arm='<rect x="132" y="122" width="40" height="18" rx="9" fill="#E8DCC8"/><rect x="158" y="98" width="30" height="50" rx="7" fill="#232A3C"/><rect x="162" y="104" width="22" height="34" rx="3" fill="#3D8BE8"/>';
+  if(pose==='pensando')   arm='<rect x="120" y="128" width="20" height="34" rx="10" fill="#E8DCC8" transform="rotate(28 130 145)"/><circle cx="132" cy="128" r="12" fill="#F6C9A0"/>';
+  return `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="100" cy="100" r="100" fill="#DCEBFB"/>
+    <path d="M28 200 C34 154 66 142 100 142 C134 142 166 154 172 200 Z" fill="#EFE7D6"/>
+    <rect x="72" y="150" width="13" height="50" fill="#B79E7F"/>
+    <rect x="115" y="150" width="13" height="50" fill="#B79E7F"/>
+    <path d="M88 142 h24 v14 a12 12 0 0 1 -24 0 Z" fill="#F6C9A0"/>
+    <ellipse cx="100" cy="97" rx="46" ry="50" fill="#F6C9A0"/>
+    <ellipse cx="53" cy="100" rx="9" ry="12" fill="#F6C9A0"/>
+    <ellipse cx="147" cy="100" rx="9" ry="12" fill="#F6C9A0"/>
+    <path d="M54 88 C50 48 78 34 100 36 C126 30 152 52 146 88 C142 70 128 58 100 58 C74 58 58 70 54 88 Z" fill="#C9CDD4"/>
+    <path d="M54 88 C56 76 62 66 74 61 C68 74 66 82 66 92 Z" fill="#B8BdC7"/>
+    <rect x="62" y="76" width="26" height="9" rx="4.5" fill="#AEB4BE"/>
+    <rect x="112" y="76" width="26" height="9" rx="4.5" fill="#AEB4BE"/>
+    <rect x="60" y="86" width="32" height="27" rx="12" fill="none" stroke="#2B2B2B" stroke-width="5"/>
+    <rect x="108" y="86" width="32" height="27" rx="12" fill="none" stroke="#2B2B2B" stroke-width="5"/>
+    <path d="M92 98 h16" stroke="#2B2B2B" stroke-width="5"/>
+    <circle cx="76" cy="100" r="4.5" fill="#2B2B2B"/>
+    <circle cx="124" cy="100" r="4.5" fill="#2B2B2B"/>
+    <ellipse cx="100" cy="112" rx="8" ry="6.5" fill="#E8A87C"/>
+    <path d="M74 124 C80 118 92 120 100 124 C108 120 120 118 126 124 C122 132 110 133 100 129 C90 133 78 132 74 124 Z" fill="#EDEFF2"/>
+    <path d="M86 136 C92 142 108 142 114 136" fill="none" stroke="#B5714E" stroke-width="4" stroke-linecap="round"/>
+    <ellipse cx="66" cy="118" rx="7" ry="5" fill="#F0A87E" opacity=".55"/>
+    <ellipse cx="134" cy="118" rx="7" ry="5" fill="#F0A87E" opacity=".55"/>
+    ${arm}
+  </svg>`;
+}
+var JOSE_IMG_MISS=new Set(); // poses sem PNG: não re-solicitar a cada troca de tela
+var JOSE_VID_MISS=new Set(); // poses sem MP4: cai direto no png/svg sem pedir o vídeo de novo
+function joseHTML(pose){
+  if(JOSE_IMG_MISS.has(pose)) return joseSVG(pose);
+  return joseSVG(pose)+`<img src="assets/seu-jose-${pose}.png" alt="Seu José" onerror="JOSE_IMG_MISS.add('${pose}');this.remove()">`;
+}
+/* cada tela PODE ter um vídeo seu-jose-<pose>.mp4; se não existir, cai no seu-jose-<pose>.png (e SVG por último) */
+function joseAvatarHTML(pose){
+  if(JOSE_VID_MISS.has(pose)) return joseHTML(pose);
+  return `<video class="jose-vid" src="assets/seu-jose-${pose}.mp4" loop muted playsinline preload="auto" onerror="JOSE_VID_MISS.add('${pose}');this.outerHTML=joseHTML('${pose}')"></video>`;
+}
+let joseMinT=null;
+function setJose(pose,line){
+  $('#jose-avatar').innerHTML=joseAvatarHTML(pose);
+  $('#jose-line').textContent=line;
+  const j=$('#jose'); j.classList.remove('min');
+  const b=$('#jose .jbub'); b.style.animation='none'; void b.offsetWidth; b.style.animation='';
+  clearTimeout(joseMinT);
+  joseMinT=setTimeout(()=>j.classList.add('min'), 8000);
+}
+// minimiza o guia na primeira interação da tela (não cobre teclado/CTA); fallback de 8s p/ leitura de idosos
+function joseMinimizeOnInteract(){ const j=$('#jose'); if(!j.classList.contains('min')){ clearTimeout(joseMinT); j.classList.add('min'); } }
+
+/* ================= state & navigation ================= */
+const S={docType:'inscricao', c1:'', c2phone:'', code:'', phone:'', email:'', property:0, sel:{}, payTotal:0, docKind:'link', channel:'wa'};
+const PROPS=[
+  {end:'Rua Presidente Epitácio, 123', bairro:'Jardim Aquarius', insc:'45.0123.0456.0001'},
+  {end:'Av. Cassiano Ricardo, 550 · Apto 92', bairro:'Pq. Res. Aquarius', insc:'45.0788.0031.0092'}
+];
+const BOLETOS=[
+  {id:'c4', ano:2026, label:'Parcela 4 de 10', venc:'10/06/2026', valor:322.15, base:316.40, juros:5.75, situacao:'vencido'},
+  {id:'c5', ano:2026, label:'Parcela 5 de 10', venc:'10/07/2026', valor:316.40, situacao:'aberto'},
+  {id:'c6', ano:2026, label:'Parcela 6 de 10', venc:'10/08/2026', valor:316.40, situacao:'aberto'},
+  {id:'c7', ano:2026, label:'Parcela 7 de 10', venc:'10/09/2026', valor:316.40, situacao:'aberto'},
+  {id:'a25c9', ano:2025, label:'Parcela 9 de 10', venc:'10/11/2025', valor:322.85, base:298.20, juros:24.65, situacao:'vencido'},
+  {id:'a25c10', ano:2025, label:'Parcela 10 de 10', venc:'10/12/2025', valor:320.30, base:298.20, juros:22.10, situacao:'vencido'}
+];
+const JOSE_LINES={
+  's-home':    ['boasvindas','Toque na tela que a gente resolve seu IPTU juntinhos!'],
+  's-auth':    ['apontando','Se você tiver o carnê em mãos, a inscrição imobiliária está na capa!'],
+  's-c1':      ['apontando','Digite os números com calma. Se errar, é só tocar na tecla ⌫ para apagar.'],
+  's-c2':      ['celular','Com a Conta Munícipe você entra mais rápido nas próximas vezes!'],
+  's-c3':      ['celular','Dá uma olhadinha no seu celular — o código chega por WhatsApp e SMS.'],
+  's-c4':      ['boasvindas','Fica paradinho e olha para a câmera. Eu cuido do resto!'],
+  's-property':['apontando','Confere com atenção se o imóvel é esse mesmo, tá bom?'],
+  's-boletos': ['apontando','Essas são as cotas em aberto. Pode pagar uma ou várias de uma vez!'],
+  's-payment': ['pensando','O Pix confirma na hora! Mas se preferir, eu imprimo o boleto para você.'],
+  's-pix':     ['celular','Abra o app do seu banco e aponte a câmera para o código.'],
+  's-phone':   ['celular','Esse é o mesmo WhatsApp 156 que a Prefeitura usa para falar com você!'],
+  's-email':   ['apontando','Capricha na digitação para o link chegar certinho!'],
+  's-end':     ['comemorando','Prontinho! Precisando de mim, é só voltar aqui. 💙']
+};
+const STEP_OF={'s-auth':1,'s-c1':1,'s-c2':1,'s-c3':1,'s-c4':1,'s-property':2,'s-boletos':2,'s-payment':3,'s-pix':3,'s-phone':3,'s-email':3,'s-end':3,'s-err-consulta':1,'s-emdia':2};
+let navStack=[], pixTimers=[], bioTimers=[], endCd=null;
+
+function go(id,_noPush){
+  const cur=document.querySelector('.screen.active');
+  if(cur && cur.id!==id && !_noPush) navStack.push(cur.id);
+  $$('.screen').forEach(s=>{ s.classList.remove('active'); s.inert=true; });
+  const activeEl=$('#'+id); activeEl.classList.add('active'); activeEl.inert=false;
+  // limpar timers de telas transientes
+  pixTimers.forEach(clearTimeout); pixTimers=[];
+  bioTimers.forEach(clearTimeout); bioTimers=[];
+  clearInterval(endCd);
+  // stepper
+  const st=STEP_OF[id];
+  $('#stepper').classList.toggle('hidden', id==='s-home');
+  $$('#stepper .stp').forEach(el=>{
+    const n=+el.dataset.step;
+    el.classList.toggle('on', st===n);
+    el.classList.toggle('done', st>n);
+  });
+  // Seu José — nas telas de digitação vai para o espaço morto acima do teclado;
+  // em s-boletos fica oculto p/ não cobrir a lista de cobranças
+  const jl=JOSE_LINES[id];
+  const jkeypad=['s-c1','s-c2','s-c3','s-phone','s-email'].includes(id);
+  $('#jose').classList.toggle('jkeypad', jkeypad);
+  $('#jose').classList.toggle('hide', id==='s-home' || id==='s-boletos' || !jl);
+  if(jl) setJose(jl[0], jl[1]);
+  manageJoseVideo(id);
+  // hooks
+  if(id==='s-property') renderProperty();
+  if(id==='s-boletos') renderBoletos();
+  if(id==='s-payment') $('#pay-total').textContent=money(selTotal());
+  if(id==='s-pix') pixStart();
+  if(id==='s-c4') bioStart();
+  idleReset();
+}
+function back(){ const prev=navStack.pop()||'s-home'; go(prev,true); }
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
+function toggleA11y(){ $('#kiosk').classList.toggle('bigfont'); toast($('#kiosk').classList.contains('bigfont')?'Letras maiores ativadas':'Letras no tamanho padrão'); }
+function toggleWatermark(){
+  const off=$('#watermark').classList.toggle('off');
+  const b=$('#wm-badge'); if(b){ b.textContent=off?'oculta':'visível'; b.className='bdg '+(off?'b':'g'); }
+}
+/* vídeo do Seu José na home: autoplay mudo em loop (etiqueta de totem + exigência de autoplay do navegador);
+   o único controle é este botão de mudo dentro da bola. */
+const ICON_MUTED='<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>';
+let joseMuted=true; // começa mudo (exigência de autoplay + etiqueta de totem); o botão no header alterna
+const ICON_SOUND='<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.8 6a9 9 0 0 1 0 12"/></svg>';
+function updateMuteBtn(){
+  const b=$('#jose-mute-btn'); if(!b) return;
+  b.innerHTML = joseMuted ? ICON_MUTED : ICON_SOUND;
+  b.setAttribute('aria-label', joseMuted ? 'Ativar o som do Seu José' : 'Silenciar o Seu José');
+}
+let joseActiveVid=null; // vídeo da tela atual (o único que deve tocar/soar)
+function toggleJoseMute(){
+  joseMuted=!joseMuted;
+  // só ajusta o mudo de todos; NÃO dá play em vídeos pausados (evita 2 áudios desincronizados)
+  document.querySelectorAll('.jose-vid').forEach(v=>{ v.muted=joseMuted; });
+  // ao habilitar o som, garante que só o vídeo ativo esteja tocando (em sincronia consigo mesmo)
+  if(!joseMuted && joseActiveVid){ const p=joseActiveVid.play&&joseActiveVid.play(); if(p&&p.catch)p.catch(()=>{}); }
+  updateMuteBtn();
+}
+/* só o vídeo da tela ativa toca; ao trocar de tela o anterior para e o atual começa do início */
+function manageJoseVideo(id){
+  let active=null;
+  if(id==='s-home') active=$('#jose-video');
+  else if(!$('#jose').classList.contains('hide')) active=$('#jose-avatar video');
+  joseActiveVid=active;
+  document.querySelectorAll('.jose-vid').forEach(v=>{
+    if(v===active){ v.muted=joseMuted; try{v.currentTime=0;}catch(e){} const p=v.play&&v.play(); if(p&&p.catch)p.catch(()=>{}); }
+    else { try{v.pause(); v.currentTime=0;}catch(e){} }
+  });
+}
+function joseVideoFallback(){ const h=$('#jose-hero'); if(h) h.innerHTML=joseHTML('boasvindas'); }
+
+/* ================= keypads ================= */
+/* teclado padrão Totify: [1-9] + última linha [⌫][0][Continuar âmbar] com a ação integrada */
+function buildPad(el,onKey,okFn,okLabel){
+  el.innerHTML='';
+  '123456789'.split('').forEach(k=>{
+    const b=document.createElement('button');
+    b.textContent=k; b.onclick=()=>onKey(k);
+    el.appendChild(b);
+  });
+  const del=document.createElement('button');
+  del.textContent='⌫'; del.className='pk-aux'; del.setAttribute('aria-label','Apagar');
+  del.onclick=()=>onKey('⌫'); el.appendChild(del);
+  const zero=document.createElement('button');
+  zero.textContent='0'; zero.onclick=()=>onKey('0'); el.appendChild(zero);
+  const ok=document.createElement('button');
+  ok.textContent=okLabel||'Continuar'; ok.className='pk-ok'; ok.disabled=true;
+  ok.onclick=()=>{ if(!ok.disabled && okFn) okFn(); };
+  el.appendChild(ok);
+}
+function maskCPF(d){ return d.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})\.(\d{3})(\d)/,'$1.$2.$3').replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/,'$1.$2.$3-$4'); }
+function maskInsc(d){ let o=''; const g=[2,4,4,4]; let i=0; for(const gl of g){ if(!d.length) break; o+=(o?'.':'')+d.slice(0,gl); d=d.slice(gl);} return o; }
+function maskPhone(d){ if(d.length<=2) return '('+d; if(d.length<=7) return `(${d.slice(0,2)}) ${d.slice(2)}`; return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7,11)}`; }
+
+/* ---- C1 ---- */
+function setDocType(t){
+  S.docType=t; S.c1='';
+  $('#seg-insc').classList.toggle('on',t==='inscricao');
+  $('#seg-cpf').classList.toggle('on',t==='cpf');
+  $('#c1-hint').textContent = t==='inscricao' ? 'A inscrição imobiliária está na capa do carnê do IPTU.' : 'Vamos localizar os imóveis vinculados ao seu CPF.';
+  renderC1();
+}
+function renderC1(){
+  const max=S.docType==='inscricao'?14:11;
+  const f=$('#c1-field');
+  if(!S.c1){ f.innerHTML=`<span class="ph">${S.docType==='inscricao'?'00.0000.0000.0000':'000.000.000-00'}</span>`; }
+  else f.textContent = S.docType==='inscricao'?maskInsc(S.c1):maskCPF(S.c1);
+  const falta=max-S.c1.length;
+  $('#pad-c1 .pk-ok').disabled=falta>0;
+  typeHint('#c1-hint-chip',falta);
+}
+function faltamTxt(n){ return n+(n===1?' número para completar':' números para completar'); }
+function typeHint(sel,falta){ const c=$(sel); if(!c) return; c.textContent=faltamTxt(falta); c.classList.toggle('show',falta>0); }
+function startC1(){ S.docType='inscricao'; S.c1=''; setDocType('inscricao'); go('s-c1'); }
+function authDone(){ S.property=0; go('s-property'); }
+
+/* ---- C2 ---- */
+function startC2(){ c2Step(1); go('s-c2'); }
+function c2Step(n){
+  ['c2-s1','c2-s2','c2-s3'].forEach((id,i)=>{ $('#'+id).style.display = (i===n-1)?(n===3?'flex':'block'):'none'; });
+  if(n===2) toast('Login realizado com sucesso ✓');
+}
+function c2Pick(i){ S.property=i; S.c2phone=''; renderC2Phone(); c2Step(3); }
+function renderC2Phone(){
+  const f=$('#c2-phone');
+  if(!S.c2phone) f.innerHTML='<span class="ph">(12) 90000-0000</span>'; else f.textContent=maskPhone(S.c2phone);
+  const falta=11-S.c2phone.length;
+  $('#pad-c2 .pk-ok').disabled=falta>0;
+  typeHint('#c2-hint-chip',falta);
+}
+function c2Finish(){ toast('Celular cadastrado! Códigos de segurança ativados ✓'); setTimeout(()=>go('s-property'),600); }
+
+/* ---- C3 ---- */
+function startC3(){ S.code=''; renderCode(); go('s-c3'); }
+function renderCode(){
+  const bx=$('#c3-boxes'); bx.innerHTML='';
+  for(let i=0;i<6;i++){
+    const d=document.createElement('div');
+    d.className='cb'+(S.code[i]?' fill':'');
+    d.textContent=S.code[i]||'';
+    bx.appendChild(d);
+  }
+  $('#pad-c3 .pk-ok').disabled=S.code.length<6;
+}
+function c3Done(){ toast('Código verificado ✓'); setTimeout(()=>{S.property=0; go('s-property');},500); }
+
+/* ---- C4 ---- */
+function bioStart(){
+  const bio=$('#bio'), st=$('#bio-status');
+  bio.classList.remove('ok'); bio.querySelector('.face').textContent='🙂';
+  st.textContent='Posicione seu rosto dentro da moldura…';
+  bioTimers.push(setTimeout(()=>{ st.textContent='Analisando… fique paradinho.'; },1600));
+  bioTimers.push(setTimeout(()=>{
+    bio.classList.add('ok'); bio.querySelector('.face').textContent='😄';
+    st.innerHTML='<b style="color:var(--green)">Biometria confirmada ✓</b> Olá, Anderson!';
+  },3400));
+  bioTimers.push(setTimeout(()=>{ S.property=0; go('s-property'); },4700));
+}
+function startC4(){ go('s-c4'); }
+
+/* ================= property & boletos ================= */
+function renderProperty(){
+  const p=PROPS[S.property];
+  $('#prop-card').innerHTML=`
+    <div class="prop-row"><span>Contribuinte</span><b>ANDERSON M. S.<br><small style="color:var(--mut)">CPF •••.•56.7••-••</small></b></div>
+    <div class="prop-row"><span>Inscrição imobiliária</span><b>${p.insc}</b></div>
+    <div class="prop-row"><span>Endereço</span><b>${p.end}<br><small style="color:var(--mut)">${p.bairro} · São José dos Campos/SP</small></b></div>
+    <div class="prop-priv">🔒 Alguns dados foram ocultados para a sua segurança</div>`;
+}
+function selTotal(){ return BOLETOS.filter(b=>S.sel[b.id]).reduce((a,b)=>a+b.valor,0); }
+function vencKey(dmy){ const p=dmy.split('/'); return +(p[2]+p[1]+p[0]); } // DD/MM/YYYY → YYYYMMDD
+function renderBoletos(){
+  const l=$('#bol-list'); l.innerHTML='';
+  const nVenc=BOLETOS.filter(b=>b.situacao==='vencido').length;
+  $('#bol-count').textContent = nVenc>0 ? `${BOLETOS.length} cobranças (${nVenc} vencida${nVenc>1?'s':''})` : `${BOLETOS.length} cobranças`;
+  // vencidas SEMPRE no topo (mais antiga primeiro), depois as a vencer
+  const grupos=[
+    {sit:'vencido', cls:' venc', label:'⚠ Vencidas · pague com prioridade'},
+    {sit:'aberto',  cls:'',      label:'A vencer'}
+  ];
+  grupos.forEach(g=>{
+    const itens=BOLETOS.filter(b=>b.situacao===g.sit).sort((a,b)=>vencKey(a.venc)-vencKey(b.venc));
+    if(!itens.length) return;
+    const lb=document.createElement('div'); lb.className='bol-year'+g.cls;
+    lb.textContent=g.label;
+    l.appendChild(lb);
+    itens.forEach(b=>{
+      const el=document.createElement('button');
+      el.className='bol'+(b.situacao==='vencido'?' vencido-hi':'')+(S.sel[b.id]?' sel':'');
+      el.innerHTML=`
+        <span class="chk">${S.sel[b.id]?'✓':''}</span>
+        <span class="btx"><b>${b.label} · IPTU ${b.ano}</b><span>${b.situacao==='vencido'?`Venceu ${b.venc} · ${money(b.base)} + ${money(b.juros)} de juros e multa`:`Vence ${b.venc}`}</span></span>
+        <span class="bval"><b>${money(b.valor)}</b><span class="st ${b.situacao}">${b.situacao==='vencido'?'VENCIDO':'EM ABERTO'}</span></span>`;
+      el.onclick=()=>{ S.sel[b.id]=!S.sel[b.id]; renderBoletos(); };
+      l.appendChild(el);
+    });
+  });
+  const t=selTotal();
+  $('#bol-total').textContent=money(t);
+  $('#bol-ok').disabled=t<=0;
+  requestAnimationFrame(updateBolScroll);
+}
+function updateBolScroll(){
+  const sc=$('#s-boletos'); const ind=$('#bol-more');
+  if(!sc||!ind) return;
+  const more = sc.scrollHeight - sc.clientHeight - sc.scrollTop > 24;
+  ind.classList.toggle('show', more);
+}
+
+/* ================= QR falso (visual) ================= */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function fakeQR(seed){
+  const n=25, rnd=mulberry32(seed); let cells='';
+  const inFinder=(x,y)=>(x<8&&y<8)||(x>=n-8&&y<8)||(x<8&&y>=n-8);
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+    if(inFinder(x,y)) continue;
+    if(rnd()>.52) cells+=`<rect x="${x}" y="${y}" width="1" height="1"/>`;
+  }
+  const finder=(ox,oy)=>`<g transform="translate(${ox},${oy})"><rect width="7" height="7"/><rect x="1" y="1" width="5" height="5" fill="#fff"/><rect x="2" y="2" width="3" height="3"/></g>`;
+  return `<svg class="qr" viewBox="0 0 ${n} ${n}" xmlns="http://www.w3.org/2000/svg" fill="#122B69" shape-rendering="crispEdges">
+    <rect width="${n}" height="${n}" fill="#fff"/>${cells}${finder(0,0)}${finder(n-7,0)}${finder(0,n-7)}</svg>`;
+}
+
+/* ================= payment flows ================= */
+function startPix(){ if(!guardSel()) return; go('s-pix'); }
+let pixForceExpire=false;
+function pixStart(){
+  const t=selTotal(); S.payTotal=t;
+  // restaurar UI (caso viesse de estado expirado)
+  const qrw=$('#s-pix .qrwrap'); if(qrw) qrw.classList.remove('expired');
+  const holder=qrw && qrw.nextElementSibling;
+  if(holder){ holder.classList.remove('pix-expired'); holder.innerHTML='<div class="pulse"><span class="pdot"></span> Aguardando pagamento… <b id="pix-timer" aria-hidden="true" style="margin-left:4px">4:59</b></div><div style="margin-top:10px"><span class="badge demo">demo · confirma sozinho em alguns segundos</span></div>'; }
+  $('#pix-val').textContent=money(t);
+  $('#pix-qr').innerHTML=fakeQR(20260706);
+  $('#pix-copia').textContent='00020126580014BR.GOV.BCB.PIX0136a1b2c3d4-0156-sjc-iptu-2026-demo5204000053039865406'+t.toFixed(2)+'5802BR5925PREF MUN S JOSE DOS CAMPO6009SAO JOSE62070503***6304F1D2';
+  let sec = pixForceExpire ? 3 : 299;
+  const tick=()=>{ sec--; if(sec<=0){ $('#pix-timer') && ($('#pix-timer').textContent='0:00'); pixExpire(); return; } $('#pix-timer').textContent=Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0'); pixTimers.push(setTimeout(tick,1000)); };
+  pixTimers.push(setTimeout(tick,1000));
+  if(!pixForceExpire) pixTimers.push(setTimeout(()=>{ paidEnd(); },7000));
+  pixForceExpire=false;
+}
+function paidEnd(){
+  endScreen({
+    title:'Pagamento confirmado!',
+    sub:`Recebemos o Pix de <b>${money(S.payTotal)}</b>.<br>Código de confirmação: <b>2026.07-A1B2C3</b>`,
+    extra: receiptGrid(),
+    actions:[{label:'Encerrar atendimento', cls:'btn-pri', fn:"idleExit()", countdown:45}]
+  });
+}
+function startPrint(kind){
+  if(!guardSel()) return;
+  S.payTotal=selTotal();
+  if(printerFail){ printerFail=false; armReset(); printerDown(kind); return; }
+  printPaper(kind);
+}
+function armReset(){ const b=$('#pf-badge'), pj=$('#pj-print-fail'); if(b) b.textContent='próx. off'; if(pj) pj.classList.remove('armed'); }
+function printPaper(kind){
+  const p=$('#paper'), ov=$('#printer');
+  const head=`<h4>PREFEITURA DE SÃO JOSÉ DOS CAMPOS</h4><div style="font-size:9.5px;color:#777">IPTU 2026 · Documento de demonstração</div><div class="pline"></div>`;
+  if(kind==='boleto'){
+    $('#printer-txt').textContent='Imprimindo boleto…';
+    let bars=''; const r=mulberry32(42);
+    for(let i=0;i<60;i++){ bars+=`<i style="width:${1+Math.floor(r()*3)}px;margin-right:${1+Math.floor(r()*2)}px"></i>`; }
+    p.innerHTML=`${head}<div class="pbig">${money(S.payTotal)}</div>
+      <div style="font-size:10px;margin-top:2px">Insc. ${PROPS[S.property].insc} · Venc. conforme parcela</div>
+      <div class="barcode">${bars}</div>
+      <div style="font-size:9.5px;letter-spacing:.5px">82650000003 1640001202 60710202612 34567890123</div>
+      <div class="pline"></div><div style="font-size:9.5px;color:#777">Pague no banco, lotérica ou pelo app do seu banco</div><div class="pwm">totify</div>`;
+  } else if(kind==='qrpix'){
+    $('#printer-txt').textContent='Imprimindo QR Code Pix…';
+    p.innerHTML=`${head}<div class="pbig">${money(S.payTotal)}</div>${fakeQR(777)}<div style="font-size:9.5px;color:#777">Escaneie com o app do seu banco.<br><b>Válido por 24 horas.</b> Se um novo QR Code for gerado, este será cancelado.</div><div class="pwm">totify</div>`;
+  } else {
+    $('#printer-txt').textContent='Imprimindo comprovante…';
+    p.innerHTML=`${head}<div style="font-size:11px;font-weight:700;color:#1FA35C">✓ PAGAMENTO CONFIRMADO — PIX</div>
+      <div class="pbig">${money(S.payTotal)}</div>
+      <div style="font-size:10px">Código de confirmação: 2026.07-A1B2C3 · ${new Date().toLocaleDateString('pt-BR')}</div>
+      <div class="pline"></div><div style="font-size:9.5px;color:#777">Guarde este comprovante</div><div class="pwm">totify</div>`;
+  }
+  // reinicia animação do papel
+  const np=p.cloneNode(true); p.parentNode.replaceChild(np,p); np.id='paper';
+  ov.classList.add('show');
+  setTimeout(()=>{
+    ov.classList.remove('show');
+    if(kind==='boleto') endScreen({
+      title:'Boleto impresso!',
+      sub:'Retire o boleto abaixo e pague no banco, lotérica ou pelo aplicativo do seu banco.',
+      actions:[{label:'Encerrar atendimento', cls:'btn-pri', fn:"idleExit()", countdown:45}]
+    });
+    else if(kind==='qrpix') endScreen({
+      title:'QR Code Pix impresso!',
+      sub:'Retire o papel abaixo e pague pelo celular. O QR Code vale por <b>24 horas</b> — e se um novo for gerado antes disso, o atual é cancelado e só o mais recente continua válido.',
+      actions:[{label:'Encerrar atendimento', cls:'btn-pri', fn:"idleExit()", countdown:45}]
+    });
+    else toast('Comprovante impresso ✓');
+  }, 3100);
+}
+function startSend(ch,kind){
+  S.docKind=kind||'link'; S.channel=ch;
+  const recibo=S.docKind==='recibo';
+  const noun=recibo?'o comprovante':'o link de pagamento';
+  if(ch==='email'){
+    $('#email-tb').textContent = recibo?'Comprovante por e-mail':'Link por e-mail';
+    S.email=''; renderEmail(); go('s-email');
+    if(recibo) setJose('apontando','Capricha na digitação que o comprovante chega rapidinho!');
+  } else {
+    $('#phone-tb').textContent = (recibo?'Comprovante':'Link')+(ch==='sms'?' por SMS':' por WhatsApp');
+    $('#phone-sub').innerHTML = ch==='sms'
+      ? `Enviaremos ${noun} por <b>SMS</b> para o número informado.`
+      : `Enviaremos ${noun} pelo WhatsApp <b>156</b> da Prefeitura — <b>(12) 99710-0156</b>.`;
+    S.phone=''; renderPhone(); go('s-phone');
+    if(ch==='sms') setJose('celular','Chega como mensagem de texto, direto no seu celular!');
+  }
+}
+function renderPhone(){
+  const f=$('#phone-field');
+  if(!S.phone) f.innerHTML='<span class="ph">(12) 90000-0000</span>'; else f.textContent=maskPhone(S.phone);
+  const falta=11-S.phone.length;
+  $('#pad-phone .pk-ok').disabled=falta>0;
+  typeHint('#phone-hint-chip',falta);
+}
+function renderEmail(){
+  const f=$('#email-field');
+  if(!S.email) f.innerHTML='<span class="ph">seuemail@exemplo.com</span>'; else f.textContent=S.email;
+  $('#email-ok-key').disabled=!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(S.email);
+}
+function emailChip(s){ S.email+=s; renderEmail(); idleReset(); }
+function sendLink(ch){
+  const recibo = S.docKind==='recibo';
+  if(!recibo){ if(!guardSel()) return; S.payTotal=selTotal(); }
+  const nomeCanal = ch==='wa'?'WhatsApp':ch==='sms'?'SMS':'e-mail';
+  toast('Enviando '+(recibo?'comprovante':'link')+(ch==='email'?' por e-mail…':ch==='sms'?' por SMS…':' pelo WhatsApp 156…'));
+  setTimeout(()=>{
+    const now=new Date(); const hh=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+    const dt=now.toLocaleDateString('pt-BR');
+    let prev;
+    if(ch==='wa'){
+      const corpo = recibo
+        ? `✅ <b>Pagamento confirmado!</b><br>Comprovante do seu IPTU (${money(S.payTotal)})<br>Código: 2026.07-A1B2C3 · ${dt}<br><span class="link">📄 comprovante-iptu.pdf</span>`
+        : `Olá, Anderson! 👋 Aqui está o link para pagamento do seu <b>IPTU 2026</b> (${money(S.payTotal)}):<br><span class="link">pagamentos.sjc.sp.gov.br/iptu/a1b2c3</span><br>Válido por 48 horas.`;
+      prev=`<div class="chatprev">
+        <div class="chd"><div class="cavt">156</div><div><b>Prefeitura SJC · WhatsApp 156</b><span>✓ conta verificada · (12) 99710-0156</span></div></div>
+        <div class="wamsg">${corpo}<span class="wtime">${hh} ✓✓</span></div>
+      </div>`;
+    } else if(ch==='sms'){
+      const corpo = recibo
+        ? `Prefeitura SJC: pagamento de IPTU confirmado. Valor ${money(S.payTotal)}. Codigo 2026.07-A1B2C3. Guarde este SMS.`
+        : `Prefeitura SJC: pague seu IPTU em pagamentos.sjc.sp.gov.br/iptu/a1b2c3 (valido por 48h).`;
+      prev=`<div class="chatprev" style="background:#EDF1F8">
+        <div class="chd"><div class="cavt" style="background:#5A6584">SMS</div><div><b>SMS · (12) 99710-0156</b><span style="color:var(--mut)">mensagem de texto</span></div></div>
+        <div class="wamsg" style="border-radius:12px">${corpo}<span class="wtime">${hh}</span></div>
+      </div>`;
+    } else {
+      const corpo = recibo
+        ? `Assunto: <b>Comprovante de pagamento — IPTU 2026</b><br><br>Pagamento confirmado em ${dt}.<br>Valor: <b>${money(S.payTotal)}</b> · Código: 2026.07-A1B2C3<br><span class="link">📎 comprovante-iptu.pdf</span>`
+        : `Assunto: <b>Link de pagamento — IPTU 2026</b><br><br>Acesse: <span class="link">pagamentos.sjc.sp.gov.br/iptu/a1b2c3</span><br>Valor: <b>${money(S.payTotal)}</b> · válido por 48h.`;
+      prev=`<div class="chatprev" style="background:#EDF1F8">
+        <div class="chd"><div class="cavt">✉️</div><div><b>iptu@sjc.sp.gov.br</b><span style="color:var(--mut)">para ${S.email||'você'}</span></div></div>
+        <div class="wamsg" style="border-radius:12px">${corpo}</div>
+      </div>`;
+    }
+    endScreen({
+      title:(recibo?'Comprovante enviado':'Link enviado')+' por '+nomeCanal+'!',
+      sub: ch==='email' ? `Enviamos para <b>${S.email}</b>.` : `Enviamos para <b>${maskPhone(S.phone)||'(12) 98888-0041'}</b>${ch==='wa'?' pelo canal oficial 156 — (12) 99710-0156':''}.`,
+      extra: prev,
+      actions:[{label:'Encerrar atendimento', cls:'btn-pri', fn:"idleExit()", countdown:45}]
+    });
+  }, 1300);
+}
+function endScreen(cfg){
+  $('#end-title').innerHTML=cfg.title;
+  $('#end-sub').innerHTML=cfg.sub||'';
+  $('#end-extra').innerHTML=cfg.extra||'';
+  $('#end-actions').innerHTML=(cfg.actions||[]).map((a,i)=>`<button class="btn ${a.cls}" style="margin-bottom:8px" id="end-act-${i}" onclick="${a.fn}">${a.label}</button>`).join('');
+  go('s-end');
+  // countdown de encerramento automático (o go() acima limpa qualquer countdown anterior)
+  const ci=(cfg.actions||[]).findIndex(a=>a.countdown);
+  if(ci>=0){
+    const a=cfg.actions[ci], btn=$('#end-act-'+ci); let n=a.countdown;
+    btn.textContent=a.label+' ('+n+'s)';
+    endCd=setInterval(()=>{
+      n--;
+      if(n<=0){ clearInterval(endCd); idleExit(); return; }
+      btn.textContent=a.label+' ('+n+'s)';
+    },1000);
+  }
+}
+function receiptGrid(){
+  return `<div class="rcpt-label">Quer o comprovante?</div>
+    <div class="rcpt-grid">
+      <button onclick="printPaper('recibo')">🖨️ Imprimir</button>
+      <button onclick="startSend('wa','recibo')">💬 WhatsApp</button>
+      <button onclick="startSend('sms','recibo')">📱 SMS</button>
+      <button onclick="startSend('email','recibo')">✉️ E-mail</button>
+    </div>`;
+}
+
+/* ================= inputs wiring ================= */
+buildPad($('#pad-c1'), k=>{
+  const max=S.docType==='inscricao'?14:11;
+  if(k==='⌫') S.c1=S.c1.slice(0,-1);
+  else if(/\d/.test(k) && S.c1.length<max) S.c1+=k;
+  renderC1(); idleReset();
+}, ()=>authDone());
+buildPad($('#pad-c2'), k=>{
+  if(k==='⌫') S.c2phone=S.c2phone.slice(0,-1);
+  else if(/\d/.test(k) && S.c2phone.length<11) S.c2phone+=k;
+  renderC2Phone(); idleReset();
+}, ()=>c2Finish());
+buildPad($('#pad-c3'), k=>{
+  c3ClearError();
+  if(k==='⌫') S.code=S.code.slice(0,-1);
+  else if(/\d/.test(k) && S.code.length<6) S.code+=k;
+  renderCode(); idleReset();
+}, ()=>c3Done());
+buildPad($('#pad-phone'), k=>{
+  if(k==='⌫') S.phone=S.phone.slice(0,-1);
+  else if(/\d/.test(k) && S.phone.length<11) S.phone+=k;
+  renderPhone(); idleReset();
+}, ()=>confirmSend(S.channel));
+(function buildQwerty(){
+  const rows=['1234567890','qwertyuiop','asdfghjkl','zxcvbnm@._'];
+  const q=$('#qwerty');
+  rows.forEach((r,i)=>{
+    const row=document.createElement('div'); row.className='qrow';
+    r.split('').forEach(ch=>{
+      const b=document.createElement('button'); b.textContent=ch;
+      b.onclick=()=>{ S.email+=ch; renderEmail(); idleReset(); };
+      row.appendChild(b);
+    });
+    if(i===3){
+      const del=document.createElement('button'); del.textContent='⌫'; del.className='wide'; del.setAttribute('aria-label','Apagar');
+      del.onclick=()=>{ S.email=S.email.slice(0,-1); renderEmail(); idleReset(); };
+      row.appendChild(del);
+    }
+    q.appendChild(row);
+  });
+  // tecla de ação âmbar integrada (padrão de teclado Totify)
+  const brow=document.createElement('div'); brow.className='qrow';
+  const ok=document.createElement('button'); ok.textContent='Enviar link'; ok.className='q-ok'; ok.id='email-ok-key'; ok.disabled=true;
+  ok.onclick=()=>{ if(!ok.disabled) confirmSend('email'); };
+  brow.appendChild(ok); q.appendChild(brow);
+})();
+
+/* ================= idle timeout ================= */
+let idleT=null, idleCd=null;
+function idleReset(){
+  clearTimeout(idleT); clearInterval(idleCd);
+  $('#idle').classList.remove('show');
+  const act=document.querySelector('.screen.active').id;
+  // s-home nunca expira; s-pix isento enquanto o cidadão paga de cabeça baixa no celular
+  if(act==='s-home' || act==='s-pix') return;
+  idleT=setTimeout(()=>{
+    let n=15; $('#idle-sair').textContent='Sair ('+n+'s)';
+    $('#idle').classList.add('show');
+    idleCd=setInterval(()=>{
+      n--; $('#idle-sair').textContent='Sair ('+n+'s)';
+      if(n<=0) idleExit();
+    },1000);
+  }, 50000);
+}
+['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,()=>{ if(!$('#idle').classList.contains('show')) idleReset(); }));
+$('#kmain').addEventListener('pointerdown', joseMinimizeOnInteract);
+$('#s-boletos').addEventListener('scroll', updateBolScroll, {passive:true});
+function idleKeep(){ idleReset(); }
+function idleExit(){
+  clearInterval(idleCd); clearTimeout(idleT);
+  $('#idle').classList.remove('show');
+  Object.assign(S,{c1:'',code:'',phone:'',email:'',sel:{}});
+  go('s-home');
+}
+function joseWake(){
+  const j=$('#jose');
+  if(j.classList.contains('min')){
+    j.classList.remove('min');
+    clearTimeout(joseMinT);
+    joseMinT=setTimeout(()=>j.classList.add('min'), 8000);
+  } else j.classList.add('min');
+}
+
+/* ================= presenter jumps ================= */
+function jump(k){
+  document.getElementById('panel').classList.remove('open');
+  const map={
+    home:()=>{ navStack=[]; Object.assign(S,{c1:'',code:'',phone:'',email:'',sel:{}}); go('s-home'); },
+    c1:()=>startC1(), c2:()=>startC2(), c3:()=>startC3(), c4:()=>startC4(),
+    property:()=>{ S.property=0; go('s-property'); },
+    boletos:()=>go('s-boletos'),
+    payment:()=>{ if(selTotal()<=0){S.sel={c4:true,c5:true};} go('s-payment'); },
+    pix:()=>{ if(selTotal()<=0){S.sel={c4:true,c5:true};} go('s-pix'); },
+    'print-boleto':()=>{ if(selTotal()<=0){S.sel={c4:true,c5:true};} startPrint('boleto'); },
+    wa:()=>startSend('wa'), email:()=>startSend('email'),
+    'err-consulta':()=>errConsulta(),
+    'c3-erro':()=>{ S.code=''; renderCode(); go('s-c3'); setTimeout(c3Error,50); },
+    'pix-expirado':()=>{ if(selTotal()<=0){S.sel={c4:true,c5:true};} pixForceExpire=true; go('s-pix'); },
+    'impressora-falha':()=>{ armPrinterFail(); },
+    'sem-boletos':()=>emDia()
+  };
+  (map[k]||map.home)();
+}
+
+/* ================= hardening: guards, confirmação, estados de erro ================= */
+/* piso: exige seleção de cota antes de qualquer forma de pagamento */
+function guardSel(){
+  if(selTotal()>0) return true;
+  toast('Selecione ao menos uma cota');
+  go('s-boletos');
+  return false;
+}
+
+/* confirmação leve antes de ações físicas / envio */
+let confirmFn=null;
+function askConfirm(ico,title,msg,fn,cancelLabel){
+  confirmFn=fn;
+  $('#confirm-ico').textContent=ico;
+  $('#confirm-title').textContent=title;
+  $('#confirm-msg').innerHTML=msg;
+  $('#confirm-cancel').textContent=cancelLabel||'Corrigir';
+  $('#confirm-ok').onclick=()=>{ $('#confirm').classList.remove('show'); const f=confirmFn; confirmFn=null; if(f) f(); };
+  $('#confirm').classList.add('show'); idleReset();
+}
+function confirmClose(){ $('#confirm').classList.remove('show'); confirmFn=null; }
+function confirmPrint(kind){
+  if(!guardSel()) return;
+  const label = kind==='boleto' ? 'imprimir o boleto' : 'imprimir o QR Code Pix';
+  askConfirm('🖨️','Confirmar impressão',`Vamos ${label} de <b>${money(selTotal())}</b>. Tudo certo?`,()=>startPrint(kind),'Voltar');
+}
+function confirmSend(ch){
+  const alvo = ch==='email' ? S.email : (maskPhone(S.phone)||'');
+  const recibo = S.docKind==='recibo';
+  const noun = recibo?'o comprovante':'o link de pagamento';
+  const canal = ch==='wa'?'por WhatsApp':ch==='sms'?'por SMS':'por e-mail';
+  const val = recibo ? S.payTotal : selTotal();
+  askConfirm(ch==='wa'?'💬':ch==='sms'?'📱':'✉️','Confirmar envio',`Enviar ${noun} ${canal} de <b>${money(val)}</b> para <b>${alvo}</b>?`,()=>sendLink(ch));
+}
+
+/* impressora indisponível: toggle armado no painel + estado de falha que vira venda de canal */
+let printerFail=false;
+function armPrinterFail(){
+  printerFail=!printerFail;
+  const b=$('#pf-badge'), pj=$('#pj-print-fail');
+  if(b) b.textContent=printerFail?'próx. FALHA':'próx. off';
+  if(pj) pj.classList.toggle('armed',printerFail);
+  toast(printerFail?'Próxima impressão vai falhar (demo)':'Impressora normalizada');
+}
+function printerDown(kind){
+  endScreen({
+    title:'Sem papel na impressora',
+    sub:'A impressora está temporariamente indisponível. Podemos te enviar o link de pagamento agora mesmo:',
+    actions:[
+      {label:'Voltar às formas de pagamento', cls:'btn-ghost', fn:"go('s-payment')"},
+      {label:'✉️ Receber por e-mail', cls:'btn-sec', fn:"startSend('email')"},
+      {label:'💬 Receber por WhatsApp', cls:'btn-green', fn:"startSend('wa')"}
+    ]
+  });
+  const ico=$('#s-end .bigcheck');
+  if(ico){ ico.style.background='var(--red-bg)'; ico.innerHTML='<span style="font-size:52px">🖨️</span>'; }
+  setJose('pensando','Deu um probleminha na impressora, mas eu te mando pelo celular, viu?');
+}
+
+/* Pix expirado: quando o timer chega a 0:00 */
+function pixExpire(){
+  pixTimers.forEach(clearTimeout); pixTimers=[];
+  const qrw=$('#s-pix .qrwrap'); if(qrw) qrw.classList.add('expired');
+  const holder=qrw && qrw.nextElementSibling;
+  if(holder){
+    holder.classList.add('pix-expired');
+    holder.innerHTML=`<div class="pxlabel">⏱️ Código Pix expirado</div>
+      <button class="btn btn-pri" style="max-width:280px;margin:0 auto" onclick="pixStart()">Gerar novo código Pix</button>`;
+  }
+  setJose('pensando','O código expirou, mas é rapidinho gerar outro. Toque no botão!');
+}
+
+/* C3: código incorreto — borda vermelha + mensagem, sem perder os dígitos */
+function c3Error(){
+  const bx=$('#c3-boxes'); bx.innerHTML='';
+  const wrong='481502';
+  S.code=wrong;
+  for(let i=0;i<6;i++){
+    const d=document.createElement('div');
+    d.className='cb fill err'; d.textContent=wrong[i];
+    bx.appendChild(d);
+  }
+  if(!$('#c3-errmsg')){
+    const m=document.createElement('div'); m.id='c3-errmsg'; m.className='code-err';
+    m.innerHTML='⚠️ Código incorreto. Verifique e tente de novo.';
+    bx.parentNode.insertBefore(m,bx.nextSibling);
+  }
+  // destacar o Reenviar
+  const rz=$('#s-c3 .btn-ghost'); if(rz) rz.style.fontWeight='800';
+  setJose('pensando','Ops, esse código não confere. Confere no celular ou toque em Reenviar.');
+}
+/* limpar estado de erro do C3 quando o usuário recomeça a digitar */
+function c3ClearError(){
+  const m=$('#c3-errmsg'); if(m) m.remove();
+  $$('#c3-boxes .cb').forEach(c=>c.classList.remove('err'));
+}
+
+/* consulta não encontrada */
+function errConsulta(){ go('s-err-consulta'); $('#jose').classList.remove('hide'); setJose('pensando','Não achei esse cadastro. Vamos conferir o número juntos?'); }
+/* em dia / sem boletos */
+function emDia(){ go('s-emdia'); $('#jose').classList.remove('hide'); setJose('comemorando','Que beleza! Está tudo pago, você não deve nada. 🎉'); }
+
+/* ================= misc init ================= */
+function clock(){ const d=new Date(); $('#kclock').textContent=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+clock(); setInterval(clock,5000);
+setJose('boasvindas','');
+$('#jose').classList.add('hide');
+$('#stepper').classList.add('hidden');
+updateMuteBtn();
+manageJoseVideo('s-home');
+// botão de áudio com as mesmas dimensões do A+ (offsetW/H = layout, imune ao transform:scale do kiosk)
+function syncMuteSize(){ const a=$('#a11y'), b=$('#jose-mute-btn'); if(a&&b){ b.style.width=a.offsetWidth+'px'; b.style.height=a.offsetHeight+'px'; } }
+syncMuteSize();
+if(document.fonts&&document.fonts.ready) document.fonts.ready.then(syncMuteSize);
+// estado inicial de acessibilidade: só a tela ativa é focável (mata os 139 botões fantasmas nas telas inativas)
+$$('.screen').forEach(s=>{ s.inert=!s.classList.contains('active'); });
+
+/* scale kiosk to viewport */
+function fit(){
+  const k=$('#kiosk'), pad=28;
+  const s=Math.min((innerHeight-pad)/1000, (innerWidth-pad)/560, 1.15);
+  k.style.transform='scale('+s+')';
+}
+fit(); addEventListener('resize',fit);
+
+/* ===== barreira de senha (client-side; só no link publicado) ===== */
+function cyrb53(str,seed){seed=seed||0;let h1=0xdeadbeef^seed,h2=0x41c6ce57^seed;for(let i=0,ch;i<str.length;i++){ch=str.charCodeAt(i);h1=Math.imul(h1^ch,2654435761);h2=Math.imul(h2^ch,1597334677);}h1=Math.imul(h1^(h1>>>16),2246822507);h1^=Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507);h2^=Math.imul(h1^(h1>>>13),3266489909);return 4294967296*(2097151&h2)+(h1>>>0);}
+const GATE_HASH=2947617741074057; // senha: iptu2026 (troque recalculando cyrb53 da nova senha)
+function gateHide(){ $('#gate').style.display='none'; try{sessionStorage.setItem('sjc_gate','1');}catch(e){} }
+function gateSubmit(){
+  const inp=$('#gate-pw');
+  if(cyrb53(inp.value)===GATE_HASH){ gateHide(); }
+  else { $('#gate-err').textContent='Senha incorreta. Tente novamente.'; inp.value=''; inp.focus(); }
+}
+(function initGate(){
+  const local=['localhost','127.0.0.1',''].indexOf(location.hostname)>=0;
+  let liberado=false; try{ liberado=sessionStorage.getItem('sjc_gate')==='1'; }catch(e){}
+  if(local || liberado){ $('#gate').style.display='none'; return; }
+  $('#gate').style.display='flex';
+  setTimeout(()=>{ const i=$('#gate-pw'); if(i) i.focus(); },120);
+})();
+</script>
+</body>
+</html>
